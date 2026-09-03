@@ -29,9 +29,12 @@ evaluate() {
   local R ELO H
   R=$(python3 scripts/duel_nets.py "$OUT" --games "$GAMES" --nodes "$NODES" 2>&1 | grep "^Elo")
   ELO=$(echo "$R" | grep -oE '[-+][0-9]+' | head -1)
-  say "  vs v1 champion: $R"
+  # NOTE: the v1 champion binary predates the +191 Elo search work, so this
+  # number credits BOTH search and network gains. The handcrafted comparison
+  # below uses the same binary and therefore isolates the network.
+  say "  vs v1 champion (search+net): $R"
   H=$(./target/release/chess match 40 10000 --net "$OUT" 2>&1 | grep "NNUE vs")
-  say "  vs handcrafted: $H"
+  say "  vs handcrafted (net only): $H"
 
   if [ -n "$ELO" ] && [ "$ELO" -gt "$BEST_ELO" ] 2>/dev/null; then
     BEST_ELO=$ELO; BEST_NET="$OUT"
