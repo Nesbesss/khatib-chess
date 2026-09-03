@@ -400,14 +400,6 @@ impl Searcher {
                 continue;
             }
 
-            // Skip captures that lose material outright at shallow depth;
-            // the quiescence search will revisit them if they matter.
-            if false && depth <= 5 && !is_pv && !in_check && m.is_capture()
-                && best_score > -MATE_IN_MAX && self.see(board, m) < -50 * depth
-            {
-                continue;
-            }
-
             // Tree capture: record this root move and how much it cost.
             let tree_idx = if self.capture_tree && ply == 0 {
                 self.tree.push(TreeNode {
