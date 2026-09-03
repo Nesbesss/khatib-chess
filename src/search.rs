@@ -195,12 +195,15 @@ impl Searcher {
         }
 
         let mut best = Move::NULL;
-        let mut best_score = -MATE;
+        let mut best_score = 0;
         let mut pv = Vec::new();
         let mut prev_best = Move::NULL;
 
         for depth in 1..=self.limits.depth {
-            let score = self.alphabeta(board, depth as i32, 0, -MATE, MATE, true);
+            // Aspiration windows: the score rarely moves far between
+            // iterations, so search a narrow window around the last one and
+            // widen only on a fail. Cheaper than a full-width search.
+            let score = self.aspiration(board, depth as i32, best_score);
 
             // A stopped search has a corrupt partial result; keep the last
             // completed depth's move instead.
@@ -249,6 +252,36 @@ impl Searcher {
             if list.len > 0 { best = list[0]; }
         }
         (best, best_score)
+    }
+
+    // Search one iteration, retrying with a wider window if the score falls
+    // outside the aspiration bounds.
+    fn aspiration(&mut self, board: &mut Board, depth: i32, prev: Score) -> Score {
+        // Shallow depths are cheap and unstable; just search them fully.
+        if depth <= 4 || prev.abs() > MATE_IN_MAX {
+            return self.alphabeta(board, depth, 0, -MATE, MATE, true);
+        }
+        let mut delta: Score = 20;
+        let mut alpha = (prev - delta).max(-MATE);
+        let mut beta = (prev + delta).min(MATE);
+        loop {
+            let score = self.alphabeta(board, depth, 0, alpha, beta, true);
+            if self.stopped { return score; }
+            if score <= alpha {
+                // Fail low: the position is worse than expected. Widen down
+                // and keep beta so the re-search stays cheap.
+                beta = (alpha + beta) / 2;
+                alpha = (score - delta).max(-MATE);
+            } else if score >= beta {
+                beta = (score + delta).min(MATE);
+            } else {
+                return score;
+            }
+            delta += delta / 2;
+            if delta > 800 {
+                return self.alphabeta(board, depth, 0, -MATE, MATE, true);
+            }
+        }
     }
 
     fn alphabeta(&mut self, board: &mut Board, mut depth: i32, ply: usize,
@@ -713,7 +746,7 @@ impl Searcher {
             // Capture the root breakdown at this depth for the tree view.
             self.capture_tree = true;
             self.tree.clear();
-            let score = self.alphabeta(board, depth as i32, 0, -MATE, MATE, true);
+            let score = self.aspiration(board, depth as i32, best_score);
             self.capture_tree = false;
 
             if self.stopped && depth > 1 { break; }

@@ -12,10 +12,25 @@ import argparse, os, subprocess, sys, time
 from multiprocessing import Process, Queue
 
 
+def find_engine():
+    """Locate the Stockfish binary. Debian packages it under several names
+    and does not always put it on PATH."""
+    import shutil
+    for name in ("stockfish", "Stockfish"):
+        p = shutil.which(name)
+        if p:
+            return p
+    for p in ("/usr/games/stockfish", "/usr/bin/stockfish",
+              "/usr/local/bin/stockfish", "/opt/homebrew/bin/stockfish"):
+        if os.path.exists(p):
+            return p
+    raise FileNotFoundError("stockfish binary not found")
+
+
 def worker(wid, fens, depth, out_path, q):
     """Score a shard of positions with one Stockfish process."""
     sf = subprocess.Popen(
-        ["stockfish"], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+        [find_engine()], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
         text=True, bufsize=1)
     sf.stdin.write("uci\n")
     sf.stdin.flush()
