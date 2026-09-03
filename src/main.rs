@@ -9,6 +9,7 @@ mod uci;
 mod server;
 mod nnue;
 mod datagen;
+mod match_play;
 
 use board::Board;
 use std::time::Instant;
@@ -16,11 +17,13 @@ use std::time::Instant;
 fn main() {
     let args: Vec<String> = std::env::args().collect();
 
-    // Load a network if one was given or sits next to the binary.
-    let net_path = args.iter().position(|a| a == "--net")
+    // Match mode loads nets per-player, so skip the global load — otherwise
+    // the baseline would silently use the challenger's network too.
+    let is_match = args.get(1).map(|s| s == "match").unwrap_or(false);
+    let net_path = if is_match { None } else { args.iter().position(|a| a == "--net")
         .and_then(|i| args.get(i + 1).cloned())
         .or_else(|| std::path::Path::new("net.nnue").exists()
-                    .then(|| "net.nnue".to_string()));
+                    .then(|| "net.nnue".to_string())) };
     if let Some(p) = net_path {
         match eval::load_network(&p) {
             Ok(()) => eprintln!("info string loaded network {}", p),
@@ -59,6 +62,13 @@ fn main() {
             std::fs::create_dir_all(std::path::Path::new(&out).parent()
                 .unwrap_or(std::path::Path::new("."))).ok();
             datagen::run(games, depth, &out, threads);
+        }
+        Some("match") => {
+            let net = args.iter().position(|a| a == "--net")
+                .and_then(|i| args.get(i + 1).cloned());
+            let games: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(100);
+            let nodes: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(20000);
+            match_play::run(net.as_deref(), games, nodes);
         }
         Some("serve") | Some("web") => {
             let port = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8080);

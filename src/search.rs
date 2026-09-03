@@ -90,6 +90,9 @@ pub struct Searcher {
     pub tree: Vec<TreeNode>,
     // Incremental NNUE accumulator, kept in lockstep with make/unmake.
     pub acc: Option<crate::nnue::AccStack>,
+    // Overrides the globally-loaded net; lets a match pit two evals in one
+    // process. None means "use whatever eval::network() returns".
+    pub forced_net: Option<&'static crate::nnue::Network>,
 }
 
 impl Searcher {
@@ -107,22 +110,36 @@ impl Searcher {
             capture_tree: false,
             tree: Vec::new(),
             acc: None,
+            forced_net: None,
         }
     }
 
     // Evaluate through the incremental accumulator when a net is loaded.
     #[inline(always)]
+    fn net(&self) -> Option<&'static crate::nnue::Network> {
+        self.forced_net.or_else(crate::eval::network)
+    }
+
+    #[inline(always)]
     fn eval(&self, board: &Board) -> Score {
-        match (crate::eval::network(), &self.acc) {
+        match (self.net(), &self.acc) {
             (Some(net), Some(stack)) =>
                 crate::nnue::evaluate(net, stack.top(), board.side),
-            _ => crate::eval::evaluate(board),
+            // forced_net set but no accumulator: fall back to a refresh so a
+            // match never silently compares the wrong evaluations.
+            (Some(net), None) => {
+                let mut acc = crate::nnue::Accumulator::new(net);
+                acc.refresh(net, board);
+                crate::nnue::evaluate(net, &acc, board.side)
+            }
+            _ => crate::eval::evaluate_hce(board),
         }
     }
 
     #[inline(always)]
     fn acc_push(&mut self, board: &Board, m: Move) {
-        if let (Some(net), Some(stack)) = (crate::eval::network(), self.acc.as_mut()) {
+        let n = self.forced_net.or_else(crate::eval::network);
+        if let (Some(net), Some(stack)) = (n, self.acc.as_mut()) {
             stack.push(net, board, m);
         }
     }
@@ -159,7 +176,7 @@ impl Searcher {
         self.stop.store(false, Ordering::Relaxed);
         self.killers = [[Move::NULL; 2]; MAX_PLY];
         self.history = [[[0; 64]; 64]; 2];
-        if let Some(net) = crate::eval::network() {
+        if let Some(net) = self.forced_net.or_else(crate::eval::network) {
             match self.acc.as_mut() {
                 Some(stack) => stack.reset(net, board),
                 None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
@@ -662,7 +679,7 @@ impl Searcher {
         self.stop.store(false, Ordering::Relaxed);
         self.killers = [[Move::NULL; 2]; MAX_PLY];
         self.history = [[[0; 64]; 64]; 2];
-        if let Some(net) = crate::eval::network() {
+        if let Some(net) = self.forced_net.or_else(crate::eval::network) {
             match self.acc.as_mut() {
                 Some(stack) => stack.reset(net, board),
                 None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
