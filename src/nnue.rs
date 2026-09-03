@@ -27,9 +27,93 @@ pub struct Network {
 }
 
 // The running first-layer output for both perspectives.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct Accumulator {
     pub v: [[i16; HIDDEN]; 2],
+}
+
+// A stack of accumulators, one per ply. Pushing copies the parent and applies
+// only the features that changed, so evaluation never rebuilds from scratch.
+pub struct AccStack {
+    stack: Vec<Accumulator>,
+}
+
+impl AccStack {
+    pub fn new(net: &Network, board: &Board) -> AccStack {
+        let mut a = Accumulator::new(net);
+        a.refresh(net, board);
+        AccStack { stack: vec![a] }
+    }
+
+    #[inline(always)]
+    pub fn top(&self) -> &Accumulator { self.stack.last().unwrap() }
+
+    pub fn reset(&mut self, net: &Network, board: &Board) {
+        self.stack.clear();
+        let mut a = Accumulator::new(net);
+        a.refresh(net, board);
+        self.stack.push(a);
+    }
+
+    // Apply a move's feature deltas on top of the current accumulator.
+    // `board` must be the position BEFORE the move.
+    pub fn push(&mut self, net: &Network, board: &Board, m: crate::types::Move) {
+        let mut acc = *self.top();
+        let us = board.side;
+        let them = us.flip();
+        let from = m.from();
+        let to = m.to();
+        let Some((_, piece)) = board.piece_at(from) else {
+            self.stack.push(acc);
+            return;
+        };
+
+        acc.sub(net, us, piece, from);
+
+        // Captured piece leaves the board before ours arrives.
+        if m.is_ep() {
+            let cap_sq = if us == Color::White { to - 8 } else { to + 8 };
+            acc.sub(net, them, Piece::Pawn, cap_sq);
+        } else if m.is_capture() {
+            if let Some((_, cp)) = board.piece_at(to) {
+                acc.sub(net, them, cp, to);
+            }
+        }
+
+        if m.is_promotion() {
+            acc.add(net, us, m.promo_piece(), to);
+        } else {
+            acc.add(net, us, piece, to);
+        }
+
+        if m.is_castle() {
+            use crate::types::{A1, A8, H1, H8, FLAG_CASTLE_KING};
+            let (rf, rt) = match (us, m.flag()) {
+                (Color::White, FLAG_CASTLE_KING) => (H1, H1 - 2),
+                (Color::White, _) => (A1, A1 + 3),
+                (Color::Black, FLAG_CASTLE_KING) => (H8, H8 - 2),
+                (Color::Black, _) => (A8, A8 + 3),
+            };
+            acc.sub(net, us, Piece::Rook, rf);
+            acc.add(net, us, Piece::Rook, rt);
+        }
+
+        self.stack.push(acc);
+    }
+
+    #[inline(always)]
+    pub fn pop(&mut self) {
+        // Never pop the root accumulator.
+        if self.stack.len() > 1 { self.stack.pop(); }
+    }
+
+    // Null moves change only the side to move, which the evaluator reads
+    // separately — so the accumulator is unchanged.
+    #[inline(always)]
+    pub fn push_null(&mut self) {
+        let top = *self.top();
+        self.stack.push(top);
+    }
 }
 
 impl Accumulator {
@@ -225,5 +309,87 @@ mod quant_tests {
         let mut acc = Accumulator::new(&net);
         acc.refresh(&net, &board);
         assert_eq!(evaluate(&net, &acc, board.side), 0);
+    }
+}
+
+#[cfg(test)]
+mod incremental_tests {
+    use super::*;
+    use crate::board::Board;
+    use crate::movegen::{generate, GenMode};
+
+    // Load any net-shaped bytes; content doesn't matter, only that the
+    // incremental path and the refresh path agree.
+    fn random_net() -> Box<Network> {
+        let mut net: Box<Network> = unsafe {
+            let l = std::alloc::Layout::new::<Network>();
+            let p = std::alloc::alloc_zeroed(l) as *mut Network;
+            Box::from_raw(p)
+        };
+        let mut s = 0x2545F4914F6CDD1Du64;
+        let mut next = || {
+            s ^= s >> 12; s ^= s << 25; s ^= s >> 27;
+            (s.wrapping_mul(0x2545F4914F6CDD1D) >> 48) as i16 / 64
+        };
+        for i in 0..INPUT { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
+        for j in 0..HIDDEN { net.ft_bias[j] = next(); }
+        for j in 0..HIDDEN * 2 { net.out_weight[j] = next(); }
+        net.out_bias = next();
+        net
+    }
+
+    // Walk the tree to `depth`, checking after every move that the
+    // incrementally-updated accumulator equals a fresh one. This is the test
+    // that catches castling, en passant and promotion delta bugs.
+    fn walk(net: &Network, board: &mut Board, stack: &mut AccStack, depth: u32) -> u64 {
+        if depth == 0 { return 1; }
+        let list = generate(board, GenMode::All);
+        let mut n = 0;
+        for i in 0..list.len {
+            let m = list[i];
+            stack.push(net, board, m);
+            let undo = board.make_move(m);
+
+            let mut fresh = Accumulator::new(net);
+            fresh.refresh(net, board);
+            assert_eq!(stack.top().v[0], fresh.v[0],
+                       "white accumulator drifted after {}", m.to_uci());
+            assert_eq!(stack.top().v[1], fresh.v[1],
+                       "black accumulator drifted after {}", m.to_uci());
+
+            n += walk(net, board, stack, depth - 1);
+            board.unmake_move(m, undo);
+            stack.pop();
+        }
+        n
+    }
+
+    #[test]
+    fn incremental_matches_refresh_startpos() {
+        let net = random_net();
+        let mut board = Board::startpos();
+        let mut stack = AccStack::new(&net, &board);
+        walk(&net, &mut board, &mut stack, 3);
+    }
+
+    #[test]
+    fn incremental_matches_refresh_tactical() {
+        // Kiwipete: castling both sides, promotions, en passant available.
+        let net = random_net();
+        let mut board = Board::from_fen(
+            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"
+        ).unwrap();
+        let mut stack = AccStack::new(&net, &board);
+        walk(&net, &mut board, &mut stack, 3);
+    }
+
+    #[test]
+    fn incremental_matches_refresh_promotions() {
+        let net = random_net();
+        let mut board = Board::from_fen(
+            "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1"
+        ).unwrap();
+        let mut stack = AccStack::new(&net, &board);
+        walk(&net, &mut board, &mut stack, 3);
     }
 }

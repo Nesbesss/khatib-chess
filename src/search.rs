@@ -88,6 +88,8 @@ pub struct Searcher {
     // Visualizer: root-level search tree, captured only when requested.
     pub capture_tree: bool,
     pub tree: Vec<TreeNode>,
+    // Incremental NNUE accumulator, kept in lockstep with make/unmake.
+    pub acc: Option<crate::nnue::AccStack>,
 }
 
 impl Searcher {
@@ -104,7 +106,30 @@ impl Searcher {
             stopped: false,
             capture_tree: false,
             tree: Vec::new(),
+            acc: None,
         }
+    }
+
+    // Evaluate through the incremental accumulator when a net is loaded.
+    #[inline(always)]
+    fn eval(&self, board: &Board) -> Score {
+        match (crate::eval::network(), &self.acc) {
+            (Some(net), Some(stack)) =>
+                crate::nnue::evaluate(net, stack.top(), board.side),
+            _ => crate::eval::evaluate(board),
+        }
+    }
+
+    #[inline(always)]
+    fn acc_push(&mut self, board: &Board, m: Move) {
+        if let (Some(net), Some(stack)) = (crate::eval::network(), self.acc.as_mut()) {
+            stack.push(net, board, m);
+        }
+    }
+
+    #[inline(always)]
+    fn acc_pop(&mut self) {
+        if let Some(stack) = self.acc.as_mut() { stack.pop(); }
     }
 
     #[inline(always)]
@@ -134,6 +159,12 @@ impl Searcher {
         self.stop.store(false, Ordering::Relaxed);
         self.killers = [[Move::NULL; 2]; MAX_PLY];
         self.history = [[[0; 64]; 64]; 2];
+        if let Some(net) = crate::eval::network() {
+            match self.acc.as_mut() {
+                Some(stack) => stack.reset(net, board),
+                None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
+            }
+        }
 
         let mut best = Move::NULL;
         let mut best_score = -MATE;
@@ -210,7 +241,7 @@ impl Searcher {
             if mate_alpha >= mate_beta { return mate_alpha; }
         }
 
-        if ply >= MAX_PLY - 1 { return evaluate(board); }
+        if ply >= MAX_PLY - 1 { return self.eval(board); }
 
         // Transposition table probe.
         let mut tt_move = Move::NULL;
@@ -228,7 +259,7 @@ impl Searcher {
         }
 
         let is_pv = beta - alpha > 1;
-        let static_eval = evaluate(board);
+        let static_eval = self.eval(board);
 
         // Reverse futility: if we're far enough ahead that even giving up
         // `margin` per remaining ply leaves us above beta, prune.
@@ -244,9 +275,11 @@ impl Searcher {
             && static_eval >= beta && self.has_non_pawn_material(board)
         {
             let r = 3 + depth / 4;
+            if let Some(stack) = self.acc.as_mut() { stack.push_null(); }
             let undo = self.make_null(board);
             let score = -self.alphabeta(board, depth - r, ply + 1, -beta, -beta + 1, false);
             self.unmake_null(board, undo);
+            self.acc_pop();
             if self.stopped { return 0; }
             if score >= beta {
                 // Don't return unproven mate scores from a null-move search.
@@ -284,6 +317,7 @@ impl Searcher {
             } else { None };
             let nodes_before = self.nodes;
 
+            self.acc_push(board, m);
             let undo = board.make_move(m);
             self.repetitions.push(board.hash);
 
@@ -331,6 +365,7 @@ impl Searcher {
             }
 
             board.unmake_move(m, undo);
+            self.acc_pop();
 
             if self.stopped { return 0; }
 
@@ -384,10 +419,10 @@ impl Searcher {
         if self.should_stop() { return 0; }
         self.nodes += 1;
 
-        if ply >= MAX_PLY - 1 { return evaluate(board); }
+        if ply >= MAX_PLY - 1 { return self.eval(board); }
 
         // Stand pat: we're not obliged to capture.
-        let stand_pat = evaluate(board);
+        let stand_pat = self.eval(board);
         if stand_pat >= beta { return stand_pat; }
         if stand_pat > alpha { alpha = stand_pat; }
 
@@ -409,9 +444,11 @@ impl Searcher {
             // Skip captures that lose material outright.
             if self.see(board, m) < 0 { continue; }
 
+            self.acc_push(board, m);
             let undo = board.make_move(m);
             let score = -self.quiesce(board, ply + 1, -beta, -alpha);
             board.unmake_move(m, undo);
+            self.acc_pop();
 
             if self.stopped { return 0; }
             if score > best {
@@ -625,6 +662,12 @@ impl Searcher {
         self.stop.store(false, Ordering::Relaxed);
         self.killers = [[Move::NULL; 2]; MAX_PLY];
         self.history = [[[0; 64]; 64]; 2];
+        if let Some(net) = crate::eval::network() {
+            match self.acc.as_mut() {
+                Some(stack) => stack.reset(net, board),
+                None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
+            }
+        }
 
         let mut best = Move::NULL;
         let mut best_score = 0;
