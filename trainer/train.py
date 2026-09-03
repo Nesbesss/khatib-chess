@@ -131,10 +131,27 @@ class NNUE(nn.Module):
         # Init wide enough that clipped-ReLU activations actually occupy
         # [0,1]. Too small and every quantized weight rounds toward zero,
         # which collapses the net to its bias after export.
-        nn.init.uniform_(self.ft.weight, -0.4, 0.4)
+        # Scaled so a typical 32-piece position sums to activations near the
+        # middle of [0,1] rather than saturating the clamp.
+        # Small init measured better than large: with weight clipping the
+        # network grows the weights it needs, while a large init just pins
+        # units at the clamp bounds and loses capacity.
+        nn.init.uniform_(self.ft.weight, -0.08, 0.08)
         nn.init.zeros_(self.ft.bias)
-        nn.init.uniform_(self.out.weight, -0.2, 0.2)
+        nn.init.uniform_(self.out.weight, -0.4, 0.4)
         nn.init.zeros_(self.out.bias)
+
+    def clip_weights(self):
+        """Keep weights in the range the int16 quantization can represent.
+
+        ft weights scale by QA and out weights by QB, so the representable
+        magnitudes are 32767/QA and 32767/QB. Clipping well inside those keeps
+        activations from saturating the clipped-ReLU and preserves capacity.
+        """
+        with torch.no_grad():
+            self.ft.weight.clamp_(-1.98, 1.98)
+            self.ft.bias.clamp_(-1.98, 1.98)
+            self.out.weight.clamp_(-127 / QB, 127 / QB)
 
     def forward(self, W, B, stm):
         aw = self.ft(W)   # white-perspective accumulator
@@ -273,9 +290,17 @@ def main():
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step(); sched.step()
+            model.clip_weights()
             tot += loss.item(); nb += 1
 
         model.eval()
+        # Saturation check: hidden units pinned at the clamp bounds carry no
+        # gradient and no information. High values mean wasted capacity.
+        with torch.no_grad():
+            Wb, _Bb, _sb, _sc, _wd = next(iter(vdl))
+            acts = model.ft(Wb.to(dev))
+            sat_lo = (acts < 0).float().mean().item()
+            sat_hi = (acts > 1).float().mean().item()
         vtot, vnb = 0.0, 0
         with torch.no_grad():
             for W, B, stm, sc, wd in vdl:
@@ -285,7 +310,8 @@ def main():
                 vtot += loss.item(); vnb += 1
         val = vtot / max(vnb, 1)
         print(f"epoch {ep+1}/{a.epochs}  train {tot/max(nb,1):.5f}  "
-              f"val {val:.5f}  {time.time()-t0:.0f}s", flush=True)
+              f"val {val:.5f}  sat {100*sat_lo:.0f}%lo/{100*sat_hi:.0f}%hi  "
+              f"{time.time()-t0:.0f}s", flush=True)
 
         # Keep the best net, not the last — late epochs can overfit.
         if val < best_val:
