@@ -32,14 +32,16 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
 
 @app.function(image=image, timeout=60 * 60 * 2, cpu=4, memory=8192,
               max_containers=100, retries=2)
-def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int) -> bytes:
+def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int,
+                  run_seed: int) -> bytes:
     """Self-play `games` games, then label every position with Stockfish."""
     import subprocess, sys, os
 
     raw = f"/tmp/raw_{shard}.txt"
-    # Seed by shard: without this every container generates identical games
-    # and the combined dataset collapses on deduplication.
-    seed = 0x9E3779B97F4A7C15 ^ (shard * 0x100000001B3 + 12345)
+    # Seed by shard AND by run: shard alone makes containers differ from each
+    # other, but every re-run then reproduces the identical dataset, so a
+    # second batch adds nothing.
+    seed = (run_seed ^ (shard * 0x100000001B3 + 12345)) & 0xFFFFFFFFFFFFFFFF
     subprocess.run(["chess", "datagen", str(games), str(gen_depth), raw, "4",
                     str(seed)],
                    check=True, capture_output=True)
@@ -68,12 +70,18 @@ def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int) -> byte
 
 @app.local_entrypoint()
 def main(shards: int = 60, games: int = 3000, gen_depth: int = 6,
-         sf_depth: int = 10, out: str = "data/train_big.txt"):
+         sf_depth: int = 10, out: str = "data/train_big.txt",
+         run_seed: int = 0):
+    import time
+    if run_seed == 0:
+        run_seed = int(time.time() * 1000) & 0xFFFFFFFF
+    print(f"run seed: {run_seed}")
     total = 0
     with open(out, "wb") as f:
         for chunk in gen_and_label.map(
             range(shards),
-            kwargs=dict(games=games, gen_depth=gen_depth, sf_depth=sf_depth),
+            kwargs=dict(games=games, gen_depth=gen_depth, sf_depth=sf_depth,
+                        run_seed=run_seed),
         ):
             f.write(chunk)
             total += chunk.count(b"\n")
