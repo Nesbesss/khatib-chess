@@ -137,7 +137,34 @@ pub fn relative_sq(c: Color, sq: u8) -> usize {
     if c == Color::White { sq as usize } else { (sq ^ 56) as usize }
 }
 
+// When a network is loaded, it replaces the handcrafted eval entirely.
+// Set once at startup; read without locking on the hot path.
+static NET: std::sync::OnceLock<Option<Box<crate::nnue::Network>>> =
+    std::sync::OnceLock::new();
+
+pub fn load_network(path: &str) -> Result<(), String> {
+    let net = crate::nnue::load(path).map_err(|e| e.to_string())?;
+    NET.set(Some(net)).map_err(|_| "network already loaded".to_string())
+}
+
+#[inline(always)]
+pub fn network() -> Option<&'static crate::nnue::Network> {
+    NET.get().and_then(|o| o.as_deref())
+}
+
 pub fn evaluate(board: &Board) -> Score {
+    if let Some(net) = network() {
+        // ponytail: full refresh per call, no incremental accumulator yet.
+        // Correct but ~10x slower than it should be; wire the accumulator
+        // through make/unmake once the net is proven to gain Elo.
+        let mut acc = crate::nnue::Accumulator::new(net);
+        acc.refresh(net, board);
+        return crate::nnue::evaluate(net, &acc, board.side);
+    }
+    evaluate_hce(board)
+}
+
+pub fn evaluate_hce(board: &Board) -> Score {
     let mut mg = [0i32; 2];
     let mut eg = [0i32; 2];
     let mut phase = 0i32;
