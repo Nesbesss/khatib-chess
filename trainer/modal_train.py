@@ -25,7 +25,7 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
     volumes={"/data": vol},
     timeout=60 * 60 * 4,
 )
-def train(epochs: int, batch: int, lr: float, limit: int | None):
+def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float):
     import subprocess, sys
     cmd = [
         sys.executable, "/root/train.py",
@@ -35,6 +35,7 @@ def train(epochs: int, batch: int, lr: float, limit: int | None):
         "--batch", str(batch),
         "--lr", str(lr),
         "--workers", "8",
+        "--lambda", str(lam),
     ]
     if limit:
         cmd += ["--limit", str(limit)]
@@ -56,7 +57,8 @@ def upload_chunk(offset: int, data: bytes, first: bool):
 
 @app.local_entrypoint()
 def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
-         lr: float = 1e-3, limit: int = 0, skip_upload: bool = False):
+         lr: float = 1e-3, limit: int = 0, skip_upload: bool = False,
+         lam: float = 0.7, out: str = "net.nnue"):
     import os
 
     if not skip_upload:
@@ -80,7 +82,7 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
                 print(f"  {off/1e6:.0f} MB / {size/1e6:.0f} MB", flush=True)
 
     print("training...")
-    net = train.remote(epochs, batch, lr, limit or None)
-    with open("net.nnue", "wb") as f:
+    net = train.remote(epochs, batch, lr, limit or None, lam)
+    with open(out, "wb") as f:
         f.write(net)
-    print(f"wrote net.nnue ({len(net):,} bytes)")
+    print(f"wrote {out} ({len(net):,} bytes)")

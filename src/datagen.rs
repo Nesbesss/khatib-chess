@@ -14,9 +14,10 @@ use std::io::{BufWriter, Write};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
-// One training sample, written as plain text: FEN, search score, game result.
-// Text costs disk but makes the data trivially inspectable and portable.
-struct Sample { fen: String, score: Score }
+// One training sample: FEN, search score, and the game's eventual result from
+// the side-to-move's view (1.0 win / 0.5 draw / 0.0 loss). Training on both
+// lets the net learn from outcomes, not just from the teacher's scores.
+struct Sample { fen: String, score: Score, stm_is_white: bool }
 
 struct Rng(u64);
 impl Rng {
@@ -46,7 +47,7 @@ pub fn run(games: usize, depth: u32, out_path: &str, threads: usize) {
             for _ in 0..per_thread {
                 let samples = play_game(&mut searcher, &mut rng, depth);
                 for s in &samples {
-                    writeln!(w, "{} | {}", s.fen, s.score).ok();
+                    writeln!(w, "{} | {} | {}", s.fen, s.score, s.wdl).ok();
                 }
                 written += samples.len() as u64;
                 let n = counter.fetch_add(1, Ordering::Relaxed) + 1;
@@ -76,20 +77,23 @@ pub fn run(games: usize, depth: u32, out_path: &str, threads: usize) {
     eprintln!("wrote {} positions to {}", total, out_path);
 }
 
-fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<Sample> {
+// Result of a finished game, from White's perspective.
+fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<OutSample> {
     let mut board = Board::startpos();
-    let mut samples = Vec::new();
+    let mut samples: Vec<Sample> = Vec::new();
+    let mut result: f32 = 0.5;   // from White's perspective
+    let mut decided = false;
 
     // Random opening: 8-12 plies of uniformly random legal moves. This is the
     // cheap way to get positional variety without an opening book.
     let opening_len = 8 + rng.below(5);
     for _ in 0..opening_len {
         let list = generate(&board, GenMode::All);
-        if list.len == 0 { return samples; }
+        if list.len == 0 { return Vec::new(); }
         board.make_move(list[rng.below(list.len)]);
     }
-    // Reject openings that already blundered into a lost position.
-    if generate(&board, GenMode::All).len == 0 { return samples; }
+    // Reject openings that already blundered into a terminal position.
+    if generate(&board, GenMode::All).len == 0 { return Vec::new(); }
 
     searcher.repetitions.clear();
     let limits = || SearchLimits { depth, ..Default::default() };
@@ -98,9 +102,11 @@ fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<Sample> 
         let list = generate(&board, GenMode::All);
         if list.len == 0 { break; }               // mate or stalemate
         if board.halfmove >= 100 { break; }       // fifty-move draw
+        let _ = &list;
 
         let (best, score) = searcher.search(&mut board, limits(), false);
         if best == Move::NULL { break; }
+        let score: Score = score;
 
         // Skip positions that are noisy training targets: in check, or where
         // the best move is a capture (the score reflects a pending exchange).
@@ -109,14 +115,44 @@ fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<Sample> 
             && !best.is_promotion()
             && score.abs() < MATE_IN_MAX;
         if quiet {
-            samples.push(Sample { fen: board.to_fen(), score });
+            samples.push(Sample {
+                fen: board.to_fen(),
+                score,
+                stm_is_white: board.side == Color::White,
+            });
         }
 
-        // Resign obviously decided games rather than playing them out.
-        if score.abs() > 2000 { break; }
+        // Resign obviously decided games rather than playing them out; the
+        // side to move at that point is the one that is losing.
+        if score.abs() > 2000 {
+            result = if score > 0.0_f32 as Score {
+                if board.side == Color::White { 1.0 } else { 0.0 }
+            } else if board.side == Color::White { 0.0 } else { 1.0 };
+            decided = true;
+            break;
+        }
 
         board.make_move(best);
         searcher.repetitions.push(board.hash);
     }
-    samples
+
+    // Terminal position: mate or a draw by rule.
+    if !decided {
+        let list = generate(&board, GenMode::All);
+        result = if list.len == 0 && board.in_check(board.side) {
+            if board.side == Color::White { 0.0 } else { 1.0 }
+        } else {
+            0.5
+        };
+    }
+
+    // Convert the White-relative result to each sample's own perspective.
+    samples.into_iter().map(|s| OutSample {
+        fen: s.fen,
+        score: s.score,
+        wdl: if s.stm_is_white { result } else { 1.0 - result },
+    }).collect()
 }
+
+// A sample once the game result is known.
+struct OutSample { fen: String, score: Score, wdl: f32 }

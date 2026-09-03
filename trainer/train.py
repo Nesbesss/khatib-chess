@@ -43,8 +43,13 @@ def fen_to_features(fen):
 
 
 class PositionSet(Dataset):
+    """Reads "FEN | score" or "FEN | score | wdl" lines.
+
+    Older files without the wdl column are still accepted; those samples fall
+    back to pure score training (wdl = -1 marks 'unknown').
+    """
     def __init__(self, path, limit=None):
-        self.stm, self.scores = [], []
+        self.stm, self.scores, self.wdls = [], [], []
         self.w_off, self.b_off = [0], [0]
         w_flat, b_flat = [], []
         t0 = time.time()
@@ -55,9 +60,14 @@ class PositionSet(Dataset):
                 line = line.strip()
                 if not line:
                     continue
+                parts = line.split('|')
                 try:
-                    fen, score = line.rsplit('|', 1)
-                    score = int(score)
+                    if len(parts) >= 3:
+                        fen, score, wdl = parts[0], int(parts[1]), float(parts[2])
+                    elif len(parts) == 2:
+                        fen, score, wdl = parts[0], int(parts[1]), -1.0
+                    else:
+                        continue
                 except ValueError:
                     continue
                 w, b, stm = fen_to_features(fen.strip())
@@ -66,6 +76,7 @@ class PositionSet(Dataset):
                 self.b_off.append(len(b_flat))
                 self.stm.append(stm)
                 self.scores.append(score)
+                self.wdls.append(wdl)
                 if (i + 1) % 1_000_000 == 0:
                     print(f"  loaded {i+1:,} in {time.time()-t0:.0f}s", flush=True)
         self.w_flat = np.array(w_flat, dtype=np.int32)
@@ -74,6 +85,10 @@ class PositionSet(Dataset):
         self.b_off = np.array(self.b_off, dtype=np.int64)
         self.stm = np.array(self.stm, dtype=np.int8)
         self.scores = np.array(self.scores, dtype=np.float32)
+        self.wdls = np.array(self.wdls, dtype=np.float32)
+        known = int((self.wdls >= 0).sum())
+        print(f"  {known:,} samples carry a game result "
+              f"({100*known/max(len(self.wdls),1):.0f}%)", flush=True)
         print(f"loaded {len(self.scores):,} positions in {time.time()-t0:.0f}s", flush=True)
 
     def __len__(self):
@@ -82,7 +97,7 @@ class PositionSet(Dataset):
     def __getitem__(self, i):
         w = self.w_flat[self.w_off[i]:self.w_off[i+1]]
         b = self.b_flat[self.b_off[i]:self.b_off[i+1]]
-        return w, b, int(self.stm[i]), float(self.scores[i])
+        return w, b, int(self.stm[i]), float(self.scores[i]), float(self.wdls[i])
 
 
 def collate(batch):
@@ -98,12 +113,14 @@ def collate(batch):
     B = torch.zeros(n, INPUT)
     stms = torch.empty(n, dtype=torch.long)
     scores = torch.empty(n, dtype=torch.float32)
-    for i, (w, b, stm, sc) in enumerate(batch):
+    wdls = torch.empty(n, dtype=torch.float32)
+    for i, (w, b, stm, sc, wd) in enumerate(batch):
         W[i, torch.from_numpy(w.astype('int64'))] = 1.0
         B[i, torch.from_numpy(b.astype('int64'))] = 1.0
         stms[i] = stm
         scores[i] = sc
-    return W, B, stms, scores
+        wdls[i] = wd
+    return W, B, stms, scores, wdls
 
 
 class NNUE(nn.Module):
@@ -137,6 +154,21 @@ def to_wdl(cp):
     """Map centipawns to a win probability. Training on WDL rather than raw
     centipawns keeps huge scores from dominating the loss."""
     return torch.sigmoid(cp / SCALE)
+
+
+def blended_target(scores, wdls, lam):
+    """Blend the teacher's score with the game's actual result.
+
+    lam=1.0 trains purely on search scores (imitate the teacher); lam=0.0
+    purely on outcomes. Samples with no recorded result (wdl < 0) always use
+    the score alone.
+    """
+    score_t = to_wdl(scores)
+    has_result = wdls >= 0
+    outcome_t = torch.where(has_result, wdls, score_t)
+    eff = torch.where(has_result, torch.full_like(wdls, lam),
+                      torch.ones_like(wdls))
+    return eff * score_t + (1 - eff) * outcome_t
 
 
 def quantize(model, path):
@@ -185,11 +217,13 @@ def main():
     ap.add_argument('--lr', type=float, default=1e-3)
     ap.add_argument('--limit', type=int, default=None)
     ap.add_argument('--workers', type=int, default=4)
+    ap.add_argument('--lambda', dest='lam', type=float, default=0.7,
+                    help='1.0 = pure search score, 0.0 = pure game result')
     a = ap.parse_args()
 
     dev = ('cuda' if torch.cuda.is_available()
            else 'mps' if torch.backends.mps.is_available() else 'cpu')
-    print(f"device: {dev}")
+    print(f"device: {dev}  lambda: {a.lam}")
 
     ds = PositionSet(a.data, a.limit)
     n_val = max(1, len(ds) // 50)
@@ -211,11 +245,11 @@ def main():
     for ep in range(a.epochs):
         model.train()
         tot, nb, t0 = 0.0, 0, time.time()
-        for W, B, stm, sc in dl:
+        for W, B, stm, sc, wd in dl:
             W, B = W.to(dev), B.to(dev)
-            stm, sc = stm.to(dev), sc.to(dev)
+            stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
             pred = model(W, B, stm)
-            loss = F.mse_loss(torch.sigmoid(pred), to_wdl(sc))
+            loss = F.mse_loss(torch.sigmoid(pred), blended_target(sc, wd, a.lam))
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step(); sched.step()
@@ -224,10 +258,11 @@ def main():
         model.eval()
         vtot, vnb = 0.0, 0
         with torch.no_grad():
-            for W, B, stm, sc in vdl:
+            for W, B, stm, sc, wd in vdl:
                 W, B = W.to(dev), B.to(dev)
-                stm, sc = stm.to(dev), sc.to(dev)
-                loss = F.mse_loss(torch.sigmoid(model(W, B, stm)), to_wdl(sc))
+                stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
+                loss = F.mse_loss(torch.sigmoid(model(W, B, stm)),
+                                  blended_target(sc, wd, a.lam))
                 vtot += loss.item(); vnb += 1
         val = vtot / max(vnb, 1)
         print(f"epoch {ep+1}/{a.epochs}  train {tot/max(nb,1):.5f}  "

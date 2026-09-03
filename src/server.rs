@@ -132,6 +132,13 @@ fn serve_moves(stream: &mut TcpStream, query: &str) {
                 .map(|i| format!("\"{}\"", list[i].to_uci()))
                 .collect();
             let status = game_status(&board, list.len);
+            // Both evaluations, so the UI can show what the net changed.
+            let hce = crate::eval::evaluate_hce(&board);
+            let nnue = crate::eval::network().map(|net| {
+                let mut acc = crate::nnue::Accumulator::new(net);
+                acc.refresh(net, &board);
+                crate::nnue::evaluate(net, &acc, board.side)
+            });
             format!("{{\"moves\":[{}],\"status\":\"{}\",\"turn\":\"{}\",                      \"check\":{},\"fen\":\"{}\"}}",
                     moves.join(","), status,
                     if board.side == Color::White { "w" } else { "b" },
