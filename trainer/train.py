@@ -157,7 +157,7 @@ def to_wdl(cp):
 
 
 def blended_target(scores, wdls, lam):
-    """Blend the teacher's score with the game's actual result.
+    """Blend the teacher's score with the game's actual result, in WDL space.
 
     lam=1.0 trains purely on search scores (imitate the teacher); lam=0.0
     purely on outcomes. Samples with no recorded result (wdl < 0) always use
@@ -208,6 +208,23 @@ def quantize(model, path):
     print(f"wrote {path} ({size:,} bytes)")
 
 
+def nnue_loss(pred_logit, scores, wdls, lam):
+    """WDL-space loss plus a direct anchor on the evaluation itself.
+
+    The WDL term alone is minimized by shrinking the logit toward the flat
+    part of the sigmoid, which starves the output layer of magnitude and
+    destroys int16 precision after quantization. The anchor term keeps the
+    logit calibrated to actual centipawns.
+    """
+    target = blended_target(scores, wdls, lam)
+    wdl_loss = F.mse_loss(torch.sigmoid(pred_logit), target)
+    # Anchor: predicted logit should equal score/SCALE, clamped to the range
+    # where the sigmoid is informative.
+    anchor_t = torch.clamp(scores / SCALE, -4.0, 4.0)
+    anchor_loss = F.mse_loss(pred_logit, anchor_t)
+    return wdl_loss + 0.05 * anchor_loss
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--data', required=True)
@@ -249,7 +266,7 @@ def main():
             W, B = W.to(dev), B.to(dev)
             stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
             pred = model(W, B, stm)
-            loss = F.mse_loss(torch.sigmoid(pred), blended_target(sc, wd, a.lam))
+            loss = nnue_loss(pred, sc, wd, a.lam)
             opt.zero_grad(set_to_none=True)
             loss.backward()
             opt.step(); sched.step()
@@ -261,8 +278,7 @@ def main():
             for W, B, stm, sc, wd in vdl:
                 W, B = W.to(dev), B.to(dev)
                 stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
-                loss = F.mse_loss(torch.sigmoid(model(W, B, stm)),
-                                  blended_target(sc, wd, a.lam))
+                loss = nnue_loss(model(W, B, stm), sc, wd, a.lam)
                 vtot += loss.item(); vnb += 1
         val = vtot / max(vnb, 1)
         print(f"epoch {ep+1}/{a.epochs}  train {tot/max(nb,1):.5f}  "
