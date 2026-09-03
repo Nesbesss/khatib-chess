@@ -139,10 +139,12 @@ fn serve_moves(stream: &mut TcpStream, query: &str) {
                 acc.refresh(net, &board);
                 crate::nnue::evaluate(net, &acc, board.side)
             });
-            format!("{{\"moves\":[{}],\"status\":\"{}\",\"turn\":\"{}\",                      \"check\":{},\"fen\":\"{}\"}}",
+            format!("{{\"moves\":[{}],\"status\":\"{}\",\"turn\":\"{}\",\
+                     \"check\":{},\"fen\":\"{}\",\"hce\":{},\"nnue\":{}}}",
                     moves.join(","), status,
                     if board.side == Color::White { "w" } else { "b" },
-                    board.in_check(board.side), board.to_fen())
+                    board.in_check(board.side), board.to_fen(), hce,
+                    match nnue { Some(v) => v.to_string(), None => "null".into() })
         }
         Err(e) => format!("{{\"error\":\"{}\"}}", e),
     };
