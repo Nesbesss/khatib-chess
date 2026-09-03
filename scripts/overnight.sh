@@ -71,10 +71,17 @@ run_cfg() {
   UPLOADED=1
   [ -s "$OUT" ] || { say "  no net produced"; return; }
 
+  # Measure against the STANDING BEST (v1 net at +60 Elo), not the weaker
+  # handcrafted eval — otherwise a net worse than v1 would still "win".
   local R ELO
-  R=$(./target/release/chess match 120 10000 --net "$OUT" 2>&1 | grep "NNUE vs")
-  ELO=$(echo "$R" | grep -oE '[-+][0-9]+ Elo' | head -1 | grep -oE '[-+]?[0-9]+')
-  say "  result: $R"
+  cp "$OUT" /tmp/candidate.nnue
+  R=$(python3 scripts/duel_nets.py "$OUT" 2>&1 | grep "^Elo")
+  ELO=$(echo "$R" | grep -oE '[-+][0-9]+' | head -1)
+  say "  vs v1 champion: $R"
+  # Also report against handcrafted for context.
+  local H
+  H=$(./target/release/chess match 40 10000 --net "$OUT" 2>&1 | grep "NNUE vs")
+  say "  vs handcrafted: $H"
   if [ -n "$ELO" ] && [ "$ELO" -gt "$BEST_ELO" ] 2>/dev/null; then
     BEST_ELO=$ELO; BEST_NET="$OUT"
     say "  new best: ${ELO} Elo"

@@ -1,3 +1,4 @@
 /target
 /data
 *.bin
+/baseline/chess_v1
