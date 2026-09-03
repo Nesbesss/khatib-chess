@@ -23,7 +23,7 @@ pass `--net <path>`.
 | Move generation | 160 M nodes/sec, 33/33 standard perft positions exact |
 | Search | alpha-beta with IIR, futility pruning, LMR, aspiration windows |
 | Threading | Lazy SMP — depth 19 → 22 in 3 s going from 1 to 8 threads |
-| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, king-bucketed |
+| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, **+127 Elo** over handcrafted |
 | Protocol | UCI — runs in any chess GUI |
 
 ### Measured changes
@@ -34,9 +34,15 @@ intuition both mislead:
 | Change | Result |
 |---|---|
 | IIR + futility + recapture extensions | **+191 Elo** |
+| NNUE v2 (king buckets, 1024 wide, 11.2M positions) | **+127 Elo** (v1 was +60) |
 | Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
 | SEE pruning in the main search | **−191 Elo — reverted** |
+| Logarithmic LMR table + history adjustment | ±0 Elo, shallower search — reverted |
 | King-capture fix | ±0 Elo, but fixed a hard crash |
+
+Network numbers are the *isolated* contribution: the same binary with and
+without the net, so they exclude search gains and are comparable across
+versions.
 
 ## Architecture
 
