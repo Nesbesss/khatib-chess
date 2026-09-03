@@ -37,7 +37,11 @@ def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int) -> byte
     import subprocess, sys, os
 
     raw = f"/tmp/raw_{shard}.txt"
-    subprocess.run(["chess", "datagen", str(games), str(gen_depth), raw, "4"],
+    # Seed by shard: without this every container generates identical games
+    # and the combined dataset collapses on deduplication.
+    seed = 0x9E3779B97F4A7C15 ^ (shard * 0x100000001B3 + 12345)
+    subprocess.run(["chess", "datagen", str(games), str(gen_depth), raw, "4",
+                    str(seed)],
                    check=True, capture_output=True)
 
     # Deduplicate before labeling: repeated positions waste Stockfish time.

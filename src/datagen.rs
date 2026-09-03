@@ -28,7 +28,10 @@ impl Rng {
     fn below(&mut self, n: usize) -> usize { (self.next() % n as u64) as usize }
 }
 
-pub fn run(games: usize, depth: u32, out_path: &str, threads: usize) {
+// `seed` distinguishes independent runs. Without it every process generates
+// the identical game set, which is invisible until deduplication collapses
+// the dataset.
+pub fn run(games: usize, depth: u32, out_path: &str, threads: usize, seed: u64) {
     let counter = Arc::new(AtomicU64::new(0));
     let positions = Arc::new(AtomicU64::new(0));
     let per_thread = games.div_ceil(threads);
@@ -36,9 +39,10 @@ pub fn run(games: usize, depth: u32, out_path: &str, threads: usize) {
     let handles: Vec<_> = (0..threads).map(|t| {
         let counter = counter.clone();
         let positions = positions.clone();
+        let seed = seed;
         let path = format!("{}.part{}", out_path, t);
         std::thread::spawn(move || {
-            let mut rng = Rng(0xDEADBEEF ^ ((t as u64 + 1) * 0x9E3779B97F4A7C15));
+            let mut rng = Rng(seed ^ ((t as u64 + 1).wrapping_mul(0x9E3779B97F4A7C15)));
             let mut searcher = Searcher::new(16);
             let file = File::create(&path).expect("create shard");
             let mut w = BufWriter::new(file);

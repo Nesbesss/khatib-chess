@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Play two UCI engines against each other and report the Elo difference.
+
+Used to verify that a search change is actually worth Elo, rather than
+assuming it from node counts.
+
+  scripts/duel.py ./new ./old --games 100 --nodes 20000
+"""
+import argparse, math, random, subprocess, sys
+
+
+class Engine:
+    def __init__(self, path):
+        self.p = subprocess.Popen([path], stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE, text=True, bufsize=1)
+        self._cmd("uci", "uciok")
+        self._cmd("isready", "readyok")
+
+    def _cmd(self, cmd, wait):
+        self.p.stdin.write(cmd + "\n"); self.p.stdin.flush()
+        while True:
+            line = self.p.stdout.readline()
+            if not line or wait in line:
+                return
+
+    def newgame(self):
+        self.p.stdin.write("ucinewgame\n"); self.p.stdin.flush()
+        self._cmd("isready", "readyok")
+
+    def status(self, moves):
+        """Terminal state of the position, via the engine's own rules."""
+        pos = "position startpos" + (" moves " + " ".join(moves) if moves else "")
+        self.p.stdin.write(f"{pos}\nstatus\n"); self.p.stdin.flush()
+        while True:
+            line = self.p.stdout.readline()
+            if not line:
+                return "playing"
+            line = line.strip()
+            if line in ("white-wins", "black-wins", "draw-stalemate",
+                        "draw-fifty", "draw-material", "playing"):
+                return line
+
+    def best(self, moves, nodes):
+        pos = "position startpos" + (" moves " + " ".join(moves) if moves else "")
+        self.p.stdin.write(f"{pos}\ngo nodes {nodes}\n"); self.p.stdin.flush()
+        while True:
+            line = self.p.stdout.readline()
+            if not line:
+                return None
+            if line.startswith("bestmove"):
+                mv = line.split()[1]
+                return None if mv in ("(none)", "0000") else mv
+
+    def quit(self):
+        try:
+            self.p.stdin.write("quit\n"); self.p.stdin.flush()
+            self.p.wait(timeout=5)
+        except Exception:
+            self.p.kill()
+
+
+def elo(score, n):
+    if score <= 0 or score >= 1:
+        return (float('inf') if score >= 1 else float('-inf')), 0.0
+    e = -400 * math.log10(1 / score - 1)
+    se = math.sqrt(score * (1 - score) / n)
+    margin = 400 / math.log(10) * se / (score * (1 - score))
+    return e, 1.96 * margin
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("new"); ap.add_argument("old")
+    ap.add_argument("--games", type=int, default=100)
+    ap.add_argument("--nodes", type=int, default=20000)
+    ap.add_argument("--openings", type=int, default=8)
+    a = ap.parse_args()
+
+    rng = random.Random(0xC0FFEE)
+    # A shared referee instance generates legal moves and detects game end.
+    ref = Engine(a.new)
+
+    w = l = d = 0
+    for g in range(a.games):
+        # Random opening, played by both colour assignments for fairness.
+        opening = []
+        ref.newgame()
+        for _ in range(a.openings):
+            mv = ref.best(opening, 1)
+            if not mv:
+                break
+            opening.append(mv)
+
+        for new_is_white in (True, False):
+            e1, e2 = Engine(a.new), Engine(a.old)
+            e1.newgame(); e2.newgame()
+            moves = list(opening)
+            result = None
+            seen = {}
+            for _ply in range(400):
+                st = ref.status(moves)
+                if st != "playing":
+                    if st == "white-wins":
+                        result = 1.0 if new_is_white else 0.0
+                    elif st == "black-wins":
+                        result = 0.0 if new_is_white else 1.0
+                    else:
+                        result = 0.5
+                    break
+                # Threefold repetition, tracked by move sequence position.
+                key = " ".join(moves[-12:])
+                seen[key] = seen.get(key, 0) + 1
+                if len(moves) > 20 and seen[key] >= 3:
+                    result = 0.5
+                    break
+                white_to_move = (len(moves) % 2 == 0)
+                eng = e1 if (white_to_move == new_is_white) else e2
+                mv = eng.best(moves, a.nodes)
+                if mv is None:
+                    result = 0.5
+                    break
+                moves.append(mv)
+            if result is None:
+                result = 0.5
+            if result == 1.0: w += 1
+            elif result == 0.0: l += 1
+            else: d += 1
+            e1.quit(); e2.quit()
+
+        n = w + l + d
+        if n % 20 == 0:
+            sc = (w + 0.5 * d) / n
+            e, err = elo(sc, n)
+            print(f"  {n:4} games  +{w} ={d} -{l}  {sc*100:.1f}%  "
+                  f"Elo {e:+.0f} +/- {err:.0f}", flush=True)
+
+    ref.quit()
+    n = w + l + d
+    sc = (w + 0.5 * d) / n
+    e, err = elo(sc, n)
+    print(f"\nnew vs old: +{w} ={d} -{l} of {n}, score {sc*100:.1f}%")
+    print(f"Elo {e:+.0f} (95% CI +/-{err:.0f})")
+    print("=> NEW is stronger" if e - err > 0 else
+          "=> NEW is weaker" if e + err < 0 else "=> inconclusive")
+
+
+if __name__ == "__main__":
+    main()

@@ -102,6 +102,8 @@ pub struct Searcher {
     // Overrides the globally-loaded net; lets a match pit two evals in one
     // process. None means "use whatever eval::network() returns".
     pub forced_net: Option<&'static crate::nnue::Network>,
+    // Destination of the capture that led into the current node, or 64.
+    last_capture_sq: u8,
 }
 
 impl Searcher {
@@ -120,6 +122,7 @@ impl Searcher {
             tree: Vec::new(),
             acc: None,
             forced_net: None,
+            last_capture_sq: 64,
         }
     }
 
@@ -328,6 +331,13 @@ impl Searcher {
             }
         }
 
+        // Internal iterative reduction: without a TT move the ordering is
+        // poor, so searching full depth mostly wastes nodes. Reduce, and the
+        // shallower search fills the TT for the re-search.
+        if depth >= 4 && tt_move == Move::NULL && !in_check {
+            depth -= 1;
+        }
+
         let is_pv = beta - alpha > 1;
         let static_eval = self.eval(board);
 
@@ -372,10 +382,31 @@ impl Searcher {
         let mut best_move = Move::NULL;
         let orig_alpha = alpha;
         let mut searched_quiets: Vec<Move> = Vec::new();
+        // Square of the capture that led into this node, for recapture
+        // extensions. 64 means "no capture".
+        let prev_capture_sq = self.last_capture_sq;
+
+        // Futility: near the horizon, a quiet move that cannot plausibly
+        // raise a hopeless static eval to alpha is not worth searching.
+        let futile = !is_pv && !in_check && depth <= 6
+            && static_eval + 120 * depth + 100 < alpha;
 
         for i in 0..list.len {
             let m = list[i];
             let is_quiet = !m.is_capture() && !m.is_promotion();
+
+            // Keep at least one move so we never return an empty result.
+            if futile && is_quiet && i > 0 && best_score > -MATE_IN_MAX {
+                continue;
+            }
+
+            // Skip captures that lose material outright at shallow depth;
+            // the quiescence search will revisit them if they matter.
+            if false && depth <= 5 && !is_pv && !in_check && m.is_capture()
+                && best_score > -MATE_IN_MAX && self.see(board, m) < -50 * depth
+            {
+                continue;
+            }
 
             // Tree capture: record this root move and how much it cost.
             let tree_idx = if self.capture_tree && ply == 0 {
@@ -388,12 +419,19 @@ impl Searcher {
             let nodes_before = self.nodes;
 
             self.acc_push(board, m);
+            let saved_cap = self.last_capture_sq;
+            self.last_capture_sq = if m.is_capture() { m.to() } else { 64 };
             let undo = board.make_move(m);
             self.repetitions.push(board.hash);
 
+            // Recapture extension: a forced recapture continues a tactical
+            // sequence, so searching it one ply deeper is usually worth it.
+            let ext = if m.is_capture() && m.to() == prev_capture_sq { 1 } else { 0 };
+
             let mut score;
             if i == 0 {
-                score = -self.alphabeta(board, depth - 1, ply + 1, -beta, -alpha, true);
+                score = -self.alphabeta(board, depth - 1 + ext, ply + 1,
+                                        -beta, -alpha, true);
             } else {
                 // Late move reductions: quiet moves late in a well-ordered
                 // list are unlikely to be best, so search them shallower.
@@ -416,6 +454,7 @@ impl Searcher {
             }
 
             self.repetitions.pop();
+            self.last_capture_sq = saved_cap;
 
             if let Some(ti) = tree_idx {
                 self.tree[ti].score = score;

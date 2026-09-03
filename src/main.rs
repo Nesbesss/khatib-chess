@@ -61,7 +61,12 @@ fn main() {
                     .map(|n| n.get()).unwrap_or(4));
             std::fs::create_dir_all(std::path::Path::new(&out).parent()
                 .unwrap_or(std::path::Path::new("."))).ok();
-            datagen::run(games, depth, &out, threads);
+            // Default seed varies per run so repeated invocations differ.
+            let seed: u64 = args.get(6).and_then(|s| s.parse().ok())
+                .unwrap_or_else(|| std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_nanos() as u64).unwrap_or(0x2545F4914F6CDD1D));
+            datagen::run(games, depth, &out, threads, seed);
         }
         Some("match") => {
             let net = args.iter().position(|a| a == "--net")

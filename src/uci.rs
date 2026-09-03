@@ -53,6 +53,23 @@ pub fn run() {
             // Non-standard helpers.
             "d" | "print" => println!("{}\n{}", render(&board), board.to_fen()),
             "eval" => println!("{}", crate::eval::evaluate(&board)),
+            // Non-standard: report terminal state so a match runner can
+            // detect checkmate and draws without reimplementing the rules.
+            "status" => {
+                let list = generate(&board, GenMode::All);
+                let s = if list.len == 0 {
+                    if board.in_check(board.side) {
+                        if board.side == Color::White { "black-wins" } else { "white-wins" }
+                    } else { "draw-stalemate" }
+                } else if board.halfmove >= 100 {
+                    "draw-fifty"
+                } else if crate::eval::is_insufficient_material(&board) {
+                    "draw-material"
+                } else {
+                    "playing"
+                };
+                println!("{}", s);
+            }
             _ => {}
         }
         io::stdout().flush().ok();
