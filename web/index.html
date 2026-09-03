@@ -1,0 +1,516 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chess Engine Visualizer</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --edge: #262b36;
+    --ink: #e6e9ef; --dim: #8b93a7;
+    --light: #ebecd0; --dark: #739552;
+    --accent: #6ea8fe; --good: #7ee081; --bad: #f2777a; --warn: #e2b341;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif;
+  }
+  header {
+    padding: 14px 20px; border-bottom: 1px solid var(--edge);
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  .stats { margin-left: auto; display: flex; gap: 18px; color: var(--dim); font-size: 12px; }
+  .stats b { color: var(--ink); font-variant-numeric: tabular-nums; font-weight: 600; }
+  main { display: grid; grid-template-columns: auto 320px 1fr; gap: 18px; padding: 18px; align-items: start; }
+  @media (max-width: 1100px) { main { grid-template-columns: 1fr; } }
+
+  /* Board */
+  .board-wrap { display: flex; gap: 10px; }
+  #board {
+    display: grid; grid-template-columns: repeat(8, 64px);
+    grid-template-rows: repeat(8, 64px);
+    border-radius: 6px; overflow: hidden; box-shadow: 0 8px 30px #0008;
+  }
+  .sq { position: relative; display: flex; align-items: center; justify-content: center;
+        font-size: 46px; line-height: 1; cursor: pointer; user-select: none; }
+  .sq.light { background: var(--light); } .sq.dark { background: var(--dark); }
+  .sq.sel { box-shadow: inset 0 0 0 4px var(--accent); }
+  .sq.check { background: #d9534f !important; }
+  .sq .dot { position: absolute; width: 18px; height: 18px; border-radius: 50%;
+             background: #0006; pointer-events: none; }
+  .sq.cap .dot { width: 56px; height: 56px; background: none;
+                 border: 5px solid #0005; box-sizing: border-box; }
+  .sq .coord { position: absolute; bottom: 2px; right: 4px; font-size: 9px;
+               opacity: .45; color: #000; pointer-events: none; }
+  /* Arrow overlay for the engine's principal variation */
+  #arrows { position: absolute; inset: 0; pointer-events: none; }
+  .board-holder { position: relative; }
+
+  /* Eval bar */
+  #evalbar { width: 26px; height: 512px; background: #111; border-radius: 4px;
+             overflow: hidden; display: flex; flex-direction: column-reverse;
+             position: relative; box-shadow: 0 4px 20px #0006; }
+  #evalfill { background: #f0f0f0; transition: height .35s cubic-bezier(.4,0,.2,1); }
+  #evaltxt { position: absolute; width: 100%; text-align: center; font-size: 10px;
+             font-weight: 700; top: 4px; color: #111; mix-blend-mode: difference;
+             font-variant-numeric: tabular-nums; }
+
+  /* Panels */
+  .panel { background: var(--panel); border: 1px solid var(--edge);
+           border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+  .panel h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+              color: var(--dim); margin: 0 0 10px; font-weight: 600; }
+  button {
+    background: #222834; color: var(--ink); border: 1px solid var(--edge);
+    padding: 7px 13px; border-radius: 6px; cursor: pointer; font-size: 13px;
+    font-family: inherit; transition: background .15s;
+  }
+  button:hover:not(:disabled) { background: #2c3342; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.primary { background: var(--accent); color: #0b1020; border-color: var(--accent);
+                   font-weight: 600; }
+  select, input { background: #222834; color: var(--ink); border: 1px solid var(--edge);
+                  padding: 6px 9px; border-radius: 6px; font-family: inherit; font-size: 13px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* PV / depth list */
+  #depths { max-height: 200px; overflow-y: auto; font-variant-numeric: tabular-nums; }
+  .dline { display: grid; grid-template-columns: 32px 62px 1fr; gap: 8px;
+           padding: 3px 0; font-size: 12px; border-bottom: 1px solid #1e222b; }
+  .dline .d { color: var(--dim); }
+  .dline .s { font-weight: 600; }
+  .dline .p { color: var(--dim); overflow: hidden; text-overflow: ellipsis;
+              white-space: nowrap; font-family: ui-monospace, monospace; font-size: 11px; }
+  .pos { color: var(--good); } .neg { color: var(--bad); } .mate { color: var(--warn); }
+
+  /* Search tree */
+  #treewrap { background: var(--panel); border: 1px solid var(--edge);
+              border-radius: 8px; overflow: hidden; }
+  #treehead { padding: 10px 14px; border-bottom: 1px solid var(--edge);
+              display: flex; align-items: center; gap: 14px; }
+  #treehead h2 { margin: 0; font-size: 11px; text-transform: uppercase;
+                 letter-spacing: .8px; color: var(--dim); font-weight: 600; }
+  .legend { margin-left: auto; display: flex; gap: 12px; font-size: 11px; color: var(--dim); }
+  .legend i { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+              margin-right: 5px; vertical-align: middle; }
+  #tree { width: 100%; display: block; cursor: grab; }
+  #treescroll { max-height: 660px; overflow-y: auto; }
+  #tree.drag { cursor: grabbing; }
+  .hint { color: var(--dim); font-size: 11px; padding: 8px 14px; border-top: 1px solid var(--edge); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Chess Engine — search visualizer</h1>
+  <div class="row">
+    <button id="go" class="primary">Analyze</button>
+    <button id="play">Engine move</button>
+    <button id="undo">Undo</button>
+    <button id="reset">Reset</button>
+    <select id="ms">
+      <option value="500">0.5s</option>
+      <option value="1000">1s</option>
+      <option value="2000" selected>2s</option>
+      <option value="5000">5s</option>
+      <option value="10000">10s</option>
+    </select>
+  </div>
+  <div class="stats">
+    <span>depth <b id="s-depth">–</b></span>
+    <span>nodes <b id="s-nodes">–</b></span>
+    <span>speed <b id="s-nps">–</b></span>
+    <span>eval <b id="s-eval">–</b></span>
+  </div>
+</header>
+
+<main>
+  <div class="board-wrap">
+    <div id="evalbar"><div id="evalfill" style="height:50%"></div><div id="evaltxt">0.0</div></div>
+    <div class="board-holder">
+      <div id="board"></div>
+      <svg id="arrows"></svg>
+    </div>
+  </div>
+
+  <div>
+    <div class="panel">
+      <h2>Position</h2>
+      <div class="row" style="margin-bottom:8px">
+        <span id="turn" style="font-size:12px;color:var(--dim)">White to move</span>
+      </div>
+      <input id="fen" style="width:100%;font-size:10px;font-family:ui-monospace,monospace">
+      <div class="row" style="margin-top:8px">
+        <button id="loadfen" style="font-size:12px;padding:5px 10px">Load FEN</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Thinking</h2>
+      <div id="depths"></div>
+    </div>
+    <div class="panel">
+      <h2>Moves</h2>
+      <div id="history" style="font-family:ui-monospace,monospace;font-size:12px;
+           color:var(--dim);max-height:130px;overflow-y:auto">–</div>
+    </div>
+  </div>
+
+  <div id="treewrap">
+    <div id="treehead">
+      <h2>Search tree — candidate moves &amp; refutations</h2>
+      <div class="legend">
+        <span><i style="background:var(--good)"></i>best line</span>
+        <span><i style="background:var(--accent)"></i>considered</span>
+        <span><i style="background:#4a5163"></i>refuted</span>
+      </div>
+    </div>
+    <div id="treescroll"><svg id="tree"></svg></div>
+    <div class="hint">Node size = subtree cost (nodes searched). Scroll to zoom, drag to pan, hover for detail.</div>
+  </div>
+</main>
+
+<script>
+const GLYPH = { P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',
+                p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚' };
+const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+let fen = START, legal = [], sel = null, history = [], fenStack = [], busy = false;
+let lastPV = [];
+
+const $ = id => document.getElementById(id);
+
+/* ---------- board ---------- */
+function parseFen(f) {
+  const rows = f.split(' ')[0].split('/');
+  const b = {};
+  rows.forEach((row, ri) => {
+    let file = 0;
+    for (const ch of row) {
+      if (/\d/.test(ch)) { file += +ch; }
+      else { b['abcdefgh'[file] + (8 - ri)] = ch; file++; }
+    }
+  });
+  return b;
+}
+
+function drawBoard() {
+  const pieces = parseFen(fen);
+  const turn = fen.split(' ')[1];
+  $('turn').textContent = (turn === 'w' ? 'White' : 'Black') + ' to move';
+  $('fen').value = fen;
+
+  const el = $('board');
+  el.innerHTML = '';
+  const targets = sel ? legal.filter(m => m.slice(0,2) === sel).map(m => m.slice(2,4)) : [];
+
+  for (let r = 8; r >= 1; r--) {
+    for (let f = 0; f < 8; f++) {
+      const name = 'abcdefgh'[f] + r;
+      const d = document.createElement('div');
+      d.className = 'sq ' + ((f + r) % 2 ? 'light' : 'dark');
+      const p = pieces[name];
+      if (p) d.textContent = GLYPH[p];
+      if (sel === name) d.classList.add('sel');
+      if (targets.includes(name)) {
+        if (p) d.classList.add('cap');
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        d.appendChild(dot);
+      }
+      if (f === 0 || r === 1) {
+        const c = document.createElement('span');
+        c.className = 'coord';
+        c.textContent = (r === 1 ? 'abcdefgh'[f] : '') + (f === 0 ? r : '');
+        d.appendChild(c);
+      }
+      d.onclick = () => clickSquare(name);
+      el.appendChild(d);
+    }
+  }
+  drawArrows();
+}
+
+/* PV arrows over the board */
+function drawArrows() {
+  const svg = $('arrows');
+  svg.setAttribute('viewBox', '0 0 512 512');
+  svg.style.width = '512px'; svg.style.height = '512px';
+  const sq = n => {
+    const f = 'abcdefgh'.indexOf(n[0]), r = +n[1];
+    return [f * 64 + 32, (8 - r) * 64 + 32];
+  };
+  let out = `<defs>
+    <marker id="ah" markerWidth="4" markerHeight="4" refX="2.6" refY="2"
+            orient="auto"><path d="M0,0 L4,2 L0,4 z" fill="#6ea8fe"/></marker>
+    <marker id="ah2" markerWidth="4" markerHeight="4" refX="2.6" refY="2"
+            orient="auto"><path d="M0,0 L4,2 L0,4 z" fill="#7ee081"/></marker>
+  </defs>`;
+  lastPV.slice(0, 3).forEach((m, i) => {
+    const [x1,y1] = sq(m.slice(0,2)), [x2,y2] = sq(m.slice(2,4));
+    const col = i === 0 ? '#7ee081' : '#6ea8fe';
+    out += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${col}"
+             stroke-width="${7 - i*2}" opacity="${.85 - i*.25}" stroke-linecap="round"
+             marker-end="url(#${i===0?'ah2':'ah'})"/>`;
+  });
+  svg.innerHTML = out;
+}
+
+async function refresh() {
+  const r = await fetch('/moves?fen=' + encodeURIComponent(fen));
+  const j = await r.json();
+  legal = j.moves || [];
+  drawBoard();
+  if (j.status === 'checkmate') setStatus('Checkmate');
+  else if (j.status === 'stalemate') setStatus('Stalemate');
+}
+
+function setStatus(t) { $('turn').textContent = t; }
+
+function clickSquare(name) {
+  if (busy) return;
+  if (sel) {
+    const candidates = legal.filter(m => m.slice(0,4) === sel + name);
+    if (candidates.length) {
+      // Promotion: default to queen, the right choice in nearly every case.
+      const mv = candidates.find(m => m.length === 5 && m[4] === 'q') || candidates[0];
+      applyMove(mv);
+      sel = null;
+      return;
+    }
+    sel = (name === sel) ? null : name;
+  } else {
+    if (legal.some(m => m.slice(0,2) === name)) sel = name;
+  }
+  drawBoard();
+}
+
+async function applyMove(mv) {
+  fenStack.push(fen);
+  history.push(mv);
+  const r = await fetch('/moves?fen=' + encodeURIComponent(fen) + '&play=' + mv);
+  // Server returns the new FEN after playing the move.
+  const j = await r.json();
+  if (j.fen) fen = j.fen;
+  lastPV = [];
+  renderHistory();
+  await refresh();
+}
+
+function renderHistory() {
+  const h = $('history');
+  if (!history.length) { h.textContent = '–'; return; }
+  let s = '';
+  history.forEach((m, i) => {
+    if (i % 2 === 0) s += (i/2 + 1) + '. ';
+    s += m + ' ';
+  });
+  h.textContent = s;
+  h.scrollTop = h.scrollHeight;
+}
+
+/* ---------- analysis stream ---------- */
+let es = null;
+function analyze(thenPlay) {
+  if (busy) return;
+  busy = true;
+  $('go').disabled = $('play').disabled = true;
+  $('depths').innerHTML = '';
+  if (es) es.close();
+
+  es = new EventSource('/analyze?fen=' + encodeURIComponent(fen) + '&ms=' + $('ms').value);
+
+  es.onmessage = e => {
+    const d = JSON.parse(e.data);
+    $('s-depth').textContent = d.depth;
+    $('s-nodes').textContent = fmtNum(d.nodes);
+    $('s-nps').textContent = fmtNum(d.nps) + '/s';
+    $('s-eval').textContent = fmtScore(d.score);
+    setEval(d.score);
+    lastPV = d.pv || [];
+    addDepth(d);
+    drawArrows();
+    if (d.tree) drawTree(d.tree);
+  };
+
+  es.addEventListener('done', e => {
+    const d = JSON.parse(e.data);
+    es.close(); busy = false;
+    $('go').disabled = $('play').disabled = false;
+    if (thenPlay && d.best && d.best !== '0000') applyMove(d.best);
+  });
+
+  es.onerror = () => {
+    es.close(); busy = false;
+    $('go').disabled = $('play').disabled = false;
+  };
+}
+
+function fmtNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'k';
+  return '' + n;
+}
+
+function fmtScore(s) {
+  if (!s) return '–';
+  if (s.type === 'mate') return '#' + (s.value > 0 ? '' : '-') + Math.abs(s.value);
+  return (s.value >= 0 ? '+' : '') + (s.value / 100).toFixed(2);
+}
+
+function scoreClass(s) {
+  if (s.type === 'mate') return 'mate';
+  return s.value >= 0 ? 'pos' : 'neg';
+}
+
+/* Eval bar is from White's perspective; engine scores are side-to-move. */
+function whitePov(s) {
+  const black = fen.split(' ')[1] === 'b';
+  if (s.type === 'mate') return { type:'mate', value: black ? -s.value : s.value };
+  return { type:'cp', value: black ? -s.value : s.value };
+}
+
+function setEval(s) {
+  const w = whitePov(s);
+  let pct;
+  if (w.type === 'mate') pct = w.value > 0 ? 100 : 0;
+  else pct = 50 + 50 * (2 / (1 + Math.exp(-w.value / 320)) - 1);
+  $('evalfill').style.height = Math.max(1, Math.min(99, pct)) + '%';
+  $('evaltxt').textContent = fmtScore(w);
+}
+
+function addDepth(d) {
+  const div = document.createElement('div');
+  div.className = 'dline';
+  div.innerHTML = `<span class="d">${d.depth}</span>
+    <span class="s ${scoreClass(d.score)}">${fmtScore(d.score)}</span>
+    <span class="p">${(d.pv||[]).join(' ')}</span>`;
+  $('depths').prepend(div);
+}
+
+/* ---------- search tree graph ---------- */
+let view = { x: 0, y: 0, k: 1 };
+
+function drawTree(nodes) {
+  const svg = $('tree');
+  if (!nodes.length) { svg.innerHTML = ''; return; }
+
+  // Rank by score; only the top slice is legible, the rest collapses to a
+  // summary row so the graph stays readable instead of a wall of text.
+  const sorted = [...nodes].sort((a, b) => sv(b.score) - sv(a.score));
+  const SHOW = 14;
+  const shown = sorted.slice(0, SHOW);
+  const hidden = sorted.slice(SHOW);
+  const maxNodes = Math.max(...shown.map(n => n.nodes), 1);
+
+  const ROW = 38;                       // vertical space per candidate
+  const W = svg.clientWidth || 700;
+  const H = Math.max(360, shown.length * ROW + (hidden.length ? 60 : 0) + 60);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('height', H);
+
+  const rootX = 72;
+  const colX = Math.min(300, W * 0.42);
+  const leafX = Math.min(W - 120, colX + 210);
+  const top = 34;
+
+  let g = '';
+  const rootY = top + (shown.length - 1) * ROW / 2;
+  g += `<circle cx="${rootX}" cy="${rootY}" r="17" fill="#2a3140"
+         stroke="#4a5163" stroke-width="2"/>`;
+  g += `<text x="${rootX}" y="${rootY + 4}" font-size="11" text-anchor="middle"
+         fill="#8b93a7" font-weight="700">pos</text>`;
+
+  shown.forEach((n, i) => {
+    const y = top + i * ROW;
+    const r = 7 + 13 * Math.sqrt(n.nodes / maxNodes);
+    const col = n.best ? '#7ee081' : n.pruned ? '#4a5163' : '#6ea8fe';
+    const op = n.pruned ? 0.5 : 1;
+
+    g += `<path d="M${rootX + 17},${rootY} C${(rootX + colX) / 2},${rootY}
+           ${(rootX + colX) / 2},${y} ${colX - r - 2},${y}"
+           fill="none" stroke="${col}" stroke-width="${n.best ? 2.6 : 1.3}"
+           opacity="${op * 0.65}"/>`;
+
+    // Replies: the refutation the engine expects after this move.
+    (n.replies || []).slice(0, 2).forEach((c, j) => {
+      const cy = y + (j - ((Math.min(n.replies.length, 2) - 1) / 2)) * 15;
+      g += `<path d="M${colX + r},${y} C${(colX + leafX) / 2},${y}
+             ${(colX + leafX) / 2},${cy} ${leafX - 5},${cy}"
+             fill="none" stroke="#3a4152" stroke-width="1" opacity="${op * 0.55}"/>`;
+      g += `<circle cx="${leafX}" cy="${cy}" r="3.5" fill="#3a4152" opacity="${op}"/>`;
+      g += `<text x="${leafX + 9}" y="${cy + 3.5}" font-size="10" fill="#7b8398"
+             opacity="${op}" font-family="ui-monospace,monospace">${c.move}</text>`;
+    });
+
+    g += `<circle cx="${colX}" cy="${y}" r="${r}" fill="${col}" opacity="${op}">
+            <title>${n.move}   ${fmtScore(n.score)}   ${fmtNum(n.nodes)} nodes${n.pruned ? '   (refuted)' : ''}</title>
+          </circle>`;
+    if (r > 10) {
+      g += `<text x="${colX}" y="${y + 3.5}" font-size="9" text-anchor="middle"
+             fill="#0b1020" font-weight="700" pointer-events="none">${n.piece || ''}</text>`;
+    }
+    g += `<text x="${colX - r - 10}" y="${y + 4}" font-size="12" text-anchor="end"
+           fill="${n.best ? '#7ee081' : '#c3cad9'}" opacity="${op}"
+           font-family="ui-monospace,monospace">${n.move}</text>`;
+    g += `<text x="${colX + r + 10}" y="${y + 4}" font-size="11"
+           fill="${sv(n.score) >= 0 ? '#7ee081' : '#f2777a'}" opacity="${op}"
+           font-variant-numeric="tabular-nums">${fmtScore(n.score)}</text>`;
+  });
+
+  if (hidden.length) {
+    const y = top + shown.length * ROW + 6;
+    const refuted = hidden.filter(n => n.pruned).length;
+    g += `<path d="M${rootX + 17},${rootY} C${(rootX + colX) / 2},${rootY}
+           ${(rootX + colX) / 2},${y} ${colX - 12},${y}"
+           fill="none" stroke="#39404f" stroke-width="1.2" opacity="0.5"
+           stroke-dasharray="3 3"/>`;
+    g += `<circle cx="${colX}" cy="${y}" r="9" fill="#242a35" stroke="#39404f"/>`;
+    g += `<text x="${colX + 18}" y="${y + 4}" font-size="11" fill="#6f7789">
+           +${hidden.length} more considered · ${refuted} refuted</text>`;
+  }
+
+  svg.innerHTML = `<g transform="translate(${view.x},${view.y}) scale(${view.k})">${g}</g>`;
+}
+
+function sv(s) {
+  if (!s) return 0;
+  return s.type === 'mate' ? (s.value > 0 ? 1e6 - s.value : -1e6 - s.value) : s.value;
+}
+
+/* pan + zoom */
+(function () {
+  const svg = $('tree');
+  let dragging = false, sx = 0, sy = 0;
+  svg.addEventListener('mousedown', e => { dragging = true; sx = e.clientX - view.x;
+    sy = e.clientY - view.y; svg.classList.add('drag'); });
+  addEventListener('mouseup', () => { dragging = false; svg.classList.remove('drag'); });
+  addEventListener('mousemove', e => {
+    if (!dragging) return;
+    view.x = e.clientX - sx; view.y = e.clientY - sy;
+    const g = svg.querySelector('g');
+    if (g) g.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
+  });
+  svg.addEventListener('wheel', e => {
+    e.preventDefault();
+    view.k = Math.min(3, Math.max(.35, view.k * (e.deltaY < 0 ? 1.12 : .89)));
+    const g = svg.querySelector('g');
+    if (g) g.setAttribute('transform', `translate(${view.x},${view.y}) scale(${view.k})`);
+  }, { passive: false });
+})();
+
+/* ---------- wiring ---------- */
+$('go').onclick = () => analyze(false);
+$('play').onclick = () => analyze(true);
+$('reset').onclick = () => { fen = START; history = []; fenStack = []; lastPV = [];
+                             sel = null; renderHistory(); refresh(); $('depths').innerHTML=''; };
+$('undo').onclick = () => { if (fenStack.length) { fen = fenStack.pop(); history.pop();
+                            lastPV = []; sel = null; renderHistory(); refresh(); } };
+$('loadfen').onclick = () => { fen = $('fen').value.trim(); history = []; fenStack = [];
+                               lastPV = []; sel = null; renderHistory(); refresh(); };
+
+refresh();
+</script>
+</body>
+</html>

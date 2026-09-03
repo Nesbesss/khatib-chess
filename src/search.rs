@@ -85,6 +85,9 @@ pub struct Searcher {
     // Position hashes along the current line, for repetition detection.
     pub repetitions: Vec<u64>,
     stopped: bool,
+    // Visualizer: root-level search tree, captured only when requested.
+    pub capture_tree: bool,
+    pub tree: Vec<TreeNode>,
 }
 
 impl Searcher {
@@ -99,6 +102,8 @@ impl Searcher {
             history: [[[0; 64]; 64]; 2],
             repetitions: Vec::with_capacity(1024),
             stopped: false,
+            capture_tree: false,
+            tree: Vec::new(),
         }
     }
 
@@ -257,6 +262,9 @@ impl Searcher {
 
         self.order_moves(board, &mut list, tt_move, ply);
 
+        // Each entry into the root starts a fresh tree for this depth.
+        if self.capture_tree && ply == 0 { self.tree.clear(); }
+
         let mut best_score = -MATE;
         let mut best_move = Move::NULL;
         let orig_alpha = alpha;
@@ -265,6 +273,16 @@ impl Searcher {
         for i in 0..list.len {
             let m = list[i];
             let is_quiet = !m.is_capture() && !m.is_promotion();
+
+            // Tree capture: record this root move and how much it cost.
+            let tree_idx = if self.capture_tree && ply == 0 {
+                self.tree.push(TreeNode {
+                    mv: m, score: -MATE, depth, parent: usize::MAX,
+                    children: Vec::new(), nodes: 0, pruned: false, best: false,
+                });
+                Some(self.tree.len() - 1)
+            } else { None };
+            let nodes_before = self.nodes;
 
             let undo = board.make_move(m);
             self.repetitions.push(board.hash);
@@ -294,6 +312,24 @@ impl Searcher {
             }
 
             self.repetitions.pop();
+
+            if let Some(ti) = tree_idx {
+                self.tree[ti].score = score;
+                self.tree[ti].nodes = self.nodes - nodes_before;
+                // A move that never beat alpha was effectively refuted.
+                self.tree[ti].pruned = score <= alpha && i > 0;
+                // Pull this move's best reply from the TT for the second level.
+                let replies = self.child_replies(board, 2);
+                for (rm, rs) in replies {
+                    self.tree.push(TreeNode {
+                        mv: rm, score: rs, depth: depth - 1, parent: ti,
+                        children: Vec::new(), nodes: 0, pruned: false, best: false,
+                    });
+                    let ci = self.tree.len() - 1;
+                    self.tree[ti].children.push(ci);
+                }
+            }
+
             board.unmake_move(m, undo);
 
             if self.stopped { return 0; }
@@ -322,6 +358,13 @@ impl Searcher {
                 }
             }
             if is_quiet { searched_quiets.push(m); }
+        }
+
+        if self.capture_tree && ply == 0 {
+            if let Some(n) = self.tree.iter_mut().find(|n| n.mv == best_move
+                                                       && n.parent == usize::MAX) {
+                n.best = true;
+            }
         }
 
         let bound = if best_score >= beta { Bound::Lower }
@@ -551,4 +594,132 @@ fn from_tt_score(score: Score, ply: usize) -> Score {
     if score > MATE_IN_MAX { score - ply as Score }
     else if score < -MATE_IN_MAX { score + ply as Score }
     else { score }
+}
+
+// ---------------------------------------------------------------------------
+// Visualizer support: streaming callbacks and search-tree capture.
+// ---------------------------------------------------------------------------
+
+// One node in the captured search tree.
+pub struct TreeNode {
+    pub mv: Move,
+    pub score: Score,
+    pub depth: i32,
+    pub parent: usize,
+    pub children: Vec<usize>,
+    pub nodes: u64,
+    pub pruned: bool,
+    pub best: bool,
+}
+
+impl Searcher {
+    // Same as search(), but each completed depth is handed to `on_info` as a
+    // JSON object instead of printed. Used by the visualizer's SSE stream.
+    pub fn search_with_callback<F: FnMut(String)>(
+        &mut self, board: &mut Board, limits: SearchLimits, mut on_info: F,
+    ) -> (Move, Score) {
+        self.nodes = 0;
+        self.start = Instant::now();
+        self.limits = limits;
+        self.stopped = false;
+        self.stop.store(false, Ordering::Relaxed);
+        self.killers = [[Move::NULL; 2]; MAX_PLY];
+        self.history = [[[0; 64]; 64]; 2];
+
+        let mut best = Move::NULL;
+        let mut best_score = 0;
+
+        for depth in 1..=self.limits.depth {
+            // Capture the root breakdown at this depth for the tree view.
+            self.capture_tree = true;
+            self.tree.clear();
+            let score = self.alphabeta(board, depth as i32, 0, -MATE, MATE, true);
+            self.capture_tree = false;
+
+            if self.stopped && depth > 1 { break; }
+
+            best_score = score;
+            let pv = self.extract_pv(board, depth as usize);
+            if let Some(&m) = pv.first() { best = m; }
+
+            let ms = self.start.elapsed().as_millis().max(1);
+            let nps = (self.nodes as u128 * 1000 / ms) as u64;
+            let pv_str: Vec<String> = pv.iter().map(|m| format!("\"{}\"", m.to_uci())).collect();
+
+            on_info(format!(
+                "{{\"depth\":{},\"score\":{},\"nodes\":{},\"nps\":{},\"time\":{},\
+                  \"pv\":[{}],\"tree\":{}}}",
+                depth, crate::server::score_json(score), self.nodes, nps, ms,
+                pv_str.join(","), self.tree_json(board)));
+
+            if score.abs() > MATE_IN_MAX { break; }
+            if let Some(mt) = self.limits.movetime {
+                if self.start.elapsed() > mt.mul_f32(0.5) { break; }
+            }
+        }
+
+        if best == Move::NULL {
+            let list = generate(board, GenMode::All);
+            if list.len > 0 { best = list[0]; }
+        }
+        (best, best_score)
+    }
+
+    // Serialize the captured root tree. Each root move carries its score, the
+    // subtree size it cost, and its best reply — enough to draw the graph.
+    fn tree_json(&self, board: &mut Board) -> String {
+        let mut out = Vec::new();
+        // Only true root moves; replies nest inside their parent. A move can
+        // be re-searched within a depth, so keep only its last entry.
+        let mut seen: Vec<Move> = Vec::new();
+        let roots: Vec<&TreeNode> = {
+            let mut v: Vec<&TreeNode> = self.tree.iter()
+                .filter(|n| n.parent == usize::MAX).collect();
+            v.reverse();
+            let mut keep = Vec::new();
+            for n in v {
+                if !seen.contains(&n.mv) { seen.push(n.mv); keep.push(n); }
+            }
+            keep
+        };
+        for n in roots {
+            // San-ish label: the UCI move plus the piece that moves it.
+            let piece = board.piece_at(n.mv.from())
+                .map(|(c, p)| p.to_char(c)).unwrap_or('?');
+            out.push(format!(
+                "{{\"move\":\"{}\",\"piece\":\"{}\",\"score\":{},\"nodes\":{},\
+                  \"pruned\":{},\"best\":{},\"replies\":[{}]}}",
+                n.mv.to_uci(), piece, crate::server::score_json(n.score),
+                n.nodes, n.pruned, n.best,
+                n.children.iter().filter_map(|&c| self.tree.get(c)).map(|c| {
+                    format!("{{\"move\":\"{}\",\"score\":{},\"nodes\":{},\"pruned\":{}}}",
+                            c.mv.to_uci(), crate::server::score_json(c.score),
+                            c.nodes, c.pruned)
+                }).collect::<Vec<_>>().join(",")));
+        }
+        format!("[{}]", out.join(","))
+    }
+}
+
+impl Searcher {
+    // Top replies to the current position, read from the TT. Cheap: the
+    // search just visited these, so the entries are warm.
+    fn child_replies(&self, board: &mut Board, max: usize) -> Vec<(Move, Score)> {
+        let mut out = Vec::new();
+        // The TT's stored move for this node is the refutation we care about.
+        let Some(e) = self.tt.probe(board.hash) else { return out };
+        if e.mv == Move::NULL { return out }
+        let list = generate(board, GenMode::All);
+        if !list.as_slice().contains(&e.mv) { return out }
+        out.push((e.mv, -(e.score as Score)));
+        // Add a couple of sibling captures for visual context.
+        for i in 0..list.len {
+            if out.len() >= max { break }
+            let m = list[i];
+            if m != e.mv && m.is_capture() {
+                out.push((m, 0));
+            }
+        }
+        out
+    }
 }

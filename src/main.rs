@@ -6,6 +6,7 @@ mod perft;
 mod eval;
 mod search;
 mod uci;
+mod server;
 
 use board::Board;
 use std::time::Instant;
@@ -33,6 +34,10 @@ fn main() {
                 total += n;
             }
             println!("total: {}", total);
+        }
+        Some("serve") | Some("web") => {
+            let port = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8080);
+            server::run(port);
         }
         // Default to UCI so GUIs can launch the binary with no arguments.
         _ => uci::run(),
