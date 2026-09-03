@@ -2,6 +2,7 @@
 # Unattended: wait for data, train several configs, keep whichever measurably
 # beats the standing baseline. Everything is logged to data/overnight.log.
 cd "$(dirname "$0")/.."
+RAW=${RAW:-data/train_v5.txt}
 LOG=data/overnight.log
 : > $LOG
 say() { echo "[$(date +%H:%M)] $*" | tee -a $LOG; }
@@ -9,7 +10,7 @@ say() { echo "[$(date +%H:%M)] $*" | tee -a $LOG; }
 say "waiting for data generation to finish"
 while pgrep -f "modal run trainer/modal_gen" >/dev/null; do sleep 60; done
 
-N=$(wc -l < data/train_big.txt 2>/dev/null | tr -d ' ' || echo 0)
+N=$(wc -l < $RAW 2>/dev/null | tr -d ' ' || echo 0)
 say "data ready: $N positions"
 if [ "${N:-0}" -lt 2000000 ]; then
   say "ABORT: only $N positions, expected >2M"
@@ -20,7 +21,9 @@ fi
 say "deduplicating"
 python3 - <<'PY' >> data/overnight.log 2>&1
 seen=set(); n=0; kept=0
-with open('data/train_big.txt') as f, open('data/train_big_dedup.txt','w') as o:
+import os
+raw = os.environ.get('RAW', 'data/train_v5.txt')
+with open(raw) as f, open('data/train_dedup.txt','w') as o:
     for line in f:
         n+=1
         p=line.split('|')
@@ -30,8 +33,21 @@ with open('data/train_big.txt') as f, open('data/train_big_dedup.txt','w') as o:
         seen.add(k); o.write(line); kept+=1
 print(f"dedup: {n:,} -> {kept:,}")
 PY
-DATA=data/train_big_dedup.txt
-say "training on $(wc -l < $DATA | tr -d ' ') unique positions"
+DATA=data/train_dedup.txt
+UNIQ=$(wc -l < $DATA | tr -d ' ')
+say "training on $UNIQ unique positions"
+# A low unique ratio means shards generated identical games (a seeding bug),
+# and training on it would waste the whole night.
+RATIO=$(( UNIQ * 100 / N ))
+say "unique ratio: ${RATIO}%"
+if [ "$RATIO" -lt 40 ]; then
+  say "ABORT: only ${RATIO}% unique - shards are producing duplicate games"
+  exit 1
+fi
+if [ "$UNIQ" -lt 2000000 ]; then
+  say "ABORT: only $UNIQ unique positions"
+  exit 1
+fi
 
 BEST_ELO=-99999
 BEST_NET=""
