@@ -21,9 +21,22 @@ pass `--net <path>`.
 | | |
 |---|---|
 | Move generation | 160 M nodes/sec, 33/33 standard perft positions exact |
-| Search | ~2.3 M nodes/sec, depth 16 from the start position in 1.6 s |
-| Evaluation | NNUE (768→512×2→1), **+60 Elo** over the handcrafted eval |
+| Search | alpha-beta with IIR, futility pruning, LMR, aspiration windows |
+| Threading | Lazy SMP — depth 19 → 22 in 3 s going from 1 to 8 threads |
+| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, king-bucketed |
 | Protocol | UCI — runs in any chess GUI |
+
+### Measured changes
+
+Every change goes through an engine-vs-engine match, because node counts and
+intuition both mislead:
+
+| Change | Result |
+|---|---|
+| IIR + futility + recapture extensions | **+191 Elo** |
+| Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
+| SEE pruning in the main search | **−191 Elo — reverted** |
+| King-capture fix | ±0 Elo, but fixed a hard crash |
 
 ## Architecture
 
