@@ -31,7 +31,7 @@ run_cfg() {
   say "  queen-up eval: $SANE (expect large positive)"
 
   local R ELO H
-  R=$(python3 scripts/duel_nets.py "$OUT" --games 50 --nodes 10000 2>&1 | grep "^Elo")
+  R=$(python3 scripts/duel_nets.py "$OUT" --games 150 --nodes 8000 2>&1 | grep "^Elo")
   ELO=$(echo "$R" | grep -oE '[-+][0-9]+' | head -1)
   say "  vs v1 champion: $R"
   H=$(./target/release/chess match 40 10000 --net "$OUT" 2>&1 | grep "NNUE vs")
