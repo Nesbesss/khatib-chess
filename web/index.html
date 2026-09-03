@@ -283,7 +283,12 @@ async function refresh() {
     $('cmp-diff').textContent = 'net differs by '
       + (d >= 0 ? '+' : '') + (d / 100).toFixed(2) + ' pawns';
   } else {
-    $('evalcmp').style.display = 'none';
+    // No network loaded: say so, instead of silently hiding the panel.
+    $('evalcmp').style.display = 'block';
+    $('cmp-nnue').textContent = 'not loaded';
+    $('cmp-nnue').style.color = 'var(--dim)';
+    $('cmp-hce').textContent = (j.hce >= 0 ? '+' : '') + (j.hce / 100).toFixed(2);
+    $('cmp-diff').textContent = 'running on the handcrafted evaluation';
   }
   drawBoard();
   if (j.status === 'checkmate') setStatus('Checkmate');
