@@ -130,6 +130,14 @@ promotion and castling edge cases. The NNUE tests verify that incremental
 accumulator updates are exactly equal to a full refresh, and that the
 fixed-point arithmetic has not drifted.
 
+### Known weaknesses
+
+- **No endgame tablebases.** The network misjudges theoretically drawn
+  endings badly (a dead-drawn K+P vs K reads as −400), though search usually
+  corrects it. It does not understand *opposition*: a drawn K+P vs K with the
+  defending king holding the opposition evaluates the same as a winning one.
+  Only 1.26% of self-play positions have ≤5 pieces, so this is low priority.
+
 ### Measurements that said "don't bother"
 
 Two optimisations looked obviously right and turned out not to be:
