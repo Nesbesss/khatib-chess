@@ -81,6 +81,15 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
                 first = False
                 print(f"  {off/1e6:.0f} MB / {size/1e6:.0f} MB", flush=True)
 
+    if not skip_upload:
+        size = os.path.getsize(data)
+        got_bytes, got_lines = verify_upload.remote()
+        print(f"volume holds {got_bytes/1e6:.0f} MB / {got_lines:,} lines")
+        if got_bytes < size * 0.99:
+            raise SystemExit(
+                f"upload incomplete: {got_bytes:,} of {size:,} bytes — "
+                "re-run without --skip-upload")
+
     print("training...")
     net = train.remote(epochs, batch, lr, limit or None, lam)
     with open(out, "wb") as f:

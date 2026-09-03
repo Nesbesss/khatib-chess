@@ -88,7 +88,13 @@ run_cfg() {
   fi
 }
 
+# First config also performs the upload; modal_train verifies completeness
+# and aborts loudly rather than training on a truncated file.
 run_cfg 50 0.9 1e-3
+if [ -z "$UPLOADED" ]; then
+  say "ABORT: first training run failed, so the dataset never uploaded"
+  exit 1
+fi
 run_cfg 80 0.8 1e-3
 run_cfg 50 1.0 7e-4
 
