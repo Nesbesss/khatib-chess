@@ -3,7 +3,9 @@
 # sample large enough to be meaningful, and promote only a real winner.
 #
 # Safe to run standalone; picks up config 1's net if it already exists.
-cd "$(dirname "$0")/.."
+# Run this from a copy outside the repo: editing a script while bash is
+# executing it shifts byte offsets and can silently truncate execution.
+cd "${REPO:-$(dirname "$0")/..}"
 LOG=data/sweep.log
 say() { echo "[$(date +%H:%M)] $*" | tee -a $LOG; }
 
