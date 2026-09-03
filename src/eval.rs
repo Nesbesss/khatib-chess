@@ -164,7 +164,28 @@ pub fn evaluate(board: &Board) -> Score {
     evaluate_hce(board)
 }
 
+// Material that cannot force mate: K, K+N, K+B, K+NN vs bare king.
+// Without this the engine trades into dead draws believing it is ahead.
+pub fn is_insufficient_material(board: &Board) -> bool {
+    let all_pawns = board.pieces[0][Piece::Pawn.idx()] | board.pieces[1][Piece::Pawn.idx()];
+    let heavy = board.pieces[0][Piece::Rook.idx()] | board.pieces[1][Piece::Rook.idx()]
+        | board.pieces[0][Piece::Queen.idx()] | board.pieces[1][Piece::Queen.idx()];
+    if all_pawns | heavy != 0 { return false; }
+
+    for c in [Color::White, Color::Black] {
+        let n = board.pieces[c.idx()][Piece::Knight.idx()].count_ones();
+        let b = board.pieces[c.idx()][Piece::Bishop.idx()].count_ones();
+        // Two bishops, or bishop + knight, can mate.
+        if b >= 2 || (b >= 1 && n >= 1) { return false; }
+        // Three knights can mate (contrived but legal after promotion).
+        if n >= 3 { return false; }
+    }
+    true
+}
+
 pub fn evaluate_hce(board: &Board) -> Score {
+    if is_insufficient_material(board) { return DRAW; }
+
     let mut mg = [0i32; 2];
     let mut eg = [0i32; 2];
     let mut phase = 0i32;
@@ -214,5 +235,40 @@ mod tests {
         let b = Board::from_fen("4k3/8/8/8/8/8/8/QK6 b - - 0 1").unwrap();
         assert!(evaluate(&w) > 500, "white up a queen should be winning");
         assert_eq!(evaluate(&w), -evaluate(&b));
+    }
+}
+
+#[cfg(test)]
+mod draw_tests {
+    use super::*;
+    use crate::board::Board;
+
+    #[test]
+    fn insufficient_material_detected() {
+        for fen in [
+            "4k3/8/8/8/8/8/8/4K3 w - - 0 1",        // bare kings
+            "4k3/8/8/8/8/8/8/3BK3 w - - 0 1",       // K+B vs K
+            "4k3/8/8/8/8/8/8/3NK3 w - - 0 1",       // K+N vs K
+            "4k3/8/8/8/8/8/8/2NNK3 w - - 0 1",      // K+NN vs K
+            "3bk3/8/8/8/8/8/8/3BK3 w - - 0 1",      // K+B vs K+B
+        ] {
+            let b = Board::from_fen(fen).unwrap();
+            assert!(is_insufficient_material(&b), "should be a draw: {}", fen);
+            assert_eq!(evaluate_hce(&b), DRAW);
+        }
+    }
+
+    #[test]
+    fn sufficient_material_not_flagged() {
+        for fen in [
+            "4k3/8/8/8/8/8/8/3QK3 w - - 0 1",       // queen mates
+            "4k3/8/8/8/8/8/8/3RK3 w - - 0 1",       // rook mates
+            "4k3/8/8/8/8/8/4P3/4K3 w - - 0 1",      // pawn promotes
+            "4k3/8/8/8/8/8/8/2BBK3 w - - 0 1",      // two bishops mate
+            "4k3/8/8/8/8/8/8/2NBK3 w - - 0 1",      // bishop + knight mate
+        ] {
+            let b = Board::from_fen(fen).unwrap();
+            assert!(!is_insufficient_material(&b), "should not be a draw: {}", fen);
+        }
     }
 }

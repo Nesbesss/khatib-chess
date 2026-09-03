@@ -122,6 +122,8 @@ impl Searcher {
 
     #[inline(always)]
     fn eval(&self, board: &Board) -> Score {
+        // Applies to both evaluations: no material can force mate.
+        if crate::eval::is_insufficient_material(board) { return crate::eval::DRAW; }
         match (self.net(), &self.acc) {
             (Some(net), Some(stack)) =>
                 crate::nnue::evaluate(net, stack.top(), board.side),
@@ -706,11 +708,13 @@ impl Searcher {
             let nps = (self.nodes as u128 * 1000 / ms) as u64;
             let pv_str: Vec<String> = pv.iter().map(|m| format!("\"{}\"", m.to_uci())).collect();
 
+            // Scores along the PV, so the graph can annotate each step.
+            let pv_scores = self.pv_scores(board, &pv);
             on_info(format!(
                 "{{\"depth\":{},\"score\":{},\"nodes\":{},\"nps\":{},\"time\":{},\
-                  \"pv\":[{}],\"tree\":{}}}",
+                  \"pv\":[{}],\"pvScores\":[{}],\"tree\":{}}}",
                 depth, crate::server::score_json(score), self.nodes, nps, ms,
-                pv_str.join(","), self.tree_json(board)));
+                pv_str.join(","), pv_scores.join(","), self.tree_json(board)));
 
             if score.abs() > MATE_IN_MAX { break; }
             if let Some(mt) = self.limits.movetime {
@@ -723,6 +727,30 @@ impl Searcher {
             if list.len > 0 { best = list[0]; }
         }
         (best, best_score)
+    }
+
+    // Walk the PV, reporting the TT score at each step so the visualizer can
+    // show how the evaluation evolves along the main line.
+    fn pv_scores(&self, board: &mut Board, pv: &[Move]) -> Vec<String> {
+        let mut out = Vec::new();
+        let mut undos = Vec::new();
+        for &m in pv {
+            let list = generate(board, GenMode::All);
+            if !list.as_slice().contains(&m) { break; }
+            undos.push((m, board.make_move(m)));
+            let sc = match self.tt.probe(board.hash) {
+                // TT scores are from the side to move; flip to a consistent
+                // root-relative view so the sequence reads monotonically.
+                Some(e) => {
+                    let s = from_tt_score(e.score as Score, undos.len());
+                    if undos.len() % 2 == 1 { -s } else { s }
+                }
+                None => 0,
+            };
+            out.push(crate::server::score_json(sc));
+        }
+        while let Some((m, u)) = undos.pop() { board.unmake_move(m, u); }
+        out
     }
 
     // Serialize the captured root tree. Each root move carries its score, the

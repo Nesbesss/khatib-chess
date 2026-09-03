@@ -187,7 +187,7 @@ const GLYPH = { P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
 let fen = START, legal = [], sel = null, history = [], fenStack = [], busy = false;
-let lastPV = [];
+let lastPV = [], lastPVScores = [];
 
 const $ = id => document.getElementById(id);
 
@@ -348,6 +348,7 @@ function analyze(thenPlay) {
     $('s-eval').textContent = fmtScore(d.score);
     setEval(d.score);
     lastPV = d.pv || [];
+    lastPVScores = d.pvScores || [];
     addDepth(d);
     drawArrows();
     if (d.tree) drawTree(d.tree);
@@ -426,7 +427,8 @@ function drawTree(nodes) {
 
   const ROW = 38;                       // vertical space per candidate
   const W = svg.clientWidth || 700;
-  const H = Math.max(360, shown.length * ROW + (hidden.length ? 60 : 0) + 60);
+  const H = Math.max(360, shown.length * ROW + (hidden.length ? 60 : 0)
+                     + (lastPV.length > 1 ? 90 : 0) + 60);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('height', H);
 
@@ -478,6 +480,35 @@ function drawTree(nodes) {
            fill="${sv(n.score) >= 0 ? '#7ee081' : '#f2777a'}" opacity="${op}"
            font-variant-numeric="tabular-nums">${fmtScore(n.score)}</text>`;
   });
+
+  // Principal variation drawn as a connected chain: this is the line the
+  // engine actually intends, ply by ply, with the eval at each step.
+  if (lastPV.length > 1) {
+    const py = top + shown.length * ROW + (hidden.length ? 46 : 10);
+    const n = Math.min(lastPV.length, 8);
+    const gap = Math.min(78, (W - 120) / n);
+    g += `<text x="24" y="${py - 14}" font-size="10" fill="#6f7789"
+           letter-spacing="0.6">PRINCIPAL VARIATION</text>`;
+    for (let i = 0; i < n; i++) {
+      const x = 40 + i * gap;
+      const sc = lastPVScores[i];
+      if (i > 0) {
+        g += `<line x1="${x - gap + 13}" y1="${py}" x2="${x - 11}" y2="${py}"
+               stroke="#7ee081" stroke-width="1.6" opacity="0.55"/>`;
+      }
+      g += `<circle cx="${x}" cy="${py}" r="10"
+             fill="${i % 2 ? '#252b36' : '#2f3a2c'}" stroke="#7ee081"
+             stroke-width="${i === 0 ? 2 : 1}" opacity="${1 - i * 0.07}"/>`;
+      g += `<text x="${x}" y="${py + 3.5}" font-size="8" text-anchor="middle"
+             fill="#9fb59a">${i + 1}</text>`;
+      g += `<text x="${x}" y="${py + 26}" font-size="9.5" text-anchor="middle"
+             fill="#aab2c5" font-family="ui-monospace,monospace">${lastPV[i]}</text>`;
+      if (sc) {
+        g += `<text x="${x}" y="${py + 38}" font-size="9" text-anchor="middle"
+               fill="${sv(sc) >= 0 ? '#6f9a72' : '#a86b6d'}">${fmtScore(sc)}</text>`;
+      }
+    }
+  }
 
   if (hidden.length) {
     const y = top + shown.length * ROW + 6;
