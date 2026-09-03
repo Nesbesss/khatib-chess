@@ -44,6 +44,14 @@ Network numbers are the *isolated* contribution: the same binary with and
 without the net, so they exclude search gains and are comparable across
 versions.
 
+**These figures do not add up.** The whole engine measures **+53 Elo** against
+the previous complete version (old search + v1 net), not +191 plus +127. Two
+reasons: Elo gains compound sub-linearly rather than summing, and the search
+improvements were measured against the *handcrafted* evaluation — a strong
+network already finds good moves, so sharper pruning buys less. The
+end-to-end number against the previous engine is the honest headline; the
+per-change numbers show which direction each change moved.
+
 ## Architecture
 
 **Move generation** (`src/movegen.rs`, `src/attacks.rs`) — magic bitboards for
