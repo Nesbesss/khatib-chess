@@ -38,7 +38,7 @@ def worker(wid, fens, depth, out_path, q):
         pass
     # One thread per process; we parallelize across positions instead.
     sf.stdin.write("setoption name Threads value 1\n")
-    sf.stdin.write("setoption name Hash value 64\n")
+    sf.stdin.write("setoption name Hash value 16\n")
     sf.stdin.write("isready\n")
     sf.stdin.flush()
     while "readyok" not in (sf.stdout.readline() or ""):

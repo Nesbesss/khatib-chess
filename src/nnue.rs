@@ -185,10 +185,7 @@ impl Accumulator {
     pub fn add(&mut self, net: &Network, color: Color, piece: Piece, sq: u8) {
         for (p, persp) in [Color::White, Color::Black].iter().enumerate() {
             let f = self.bucket[p] * INPUT + Self::feature(*persp, color, piece, sq);
-            let w = &net.ft_weight[f];
-            for i in 0..HIDDEN {
-                self.v[p][i] = self.v[p][i].wrapping_add(w[i]);
-            }
+            add_slice(&mut self.v[p], &net.ft_weight[f]);
         }
     }
 
@@ -196,10 +193,7 @@ impl Accumulator {
     pub fn sub(&mut self, net: &Network, color: Color, piece: Piece, sq: u8) {
         for (p, persp) in [Color::White, Color::Black].iter().enumerate() {
             let f = self.bucket[p] * INPUT + Self::feature(*persp, color, piece, sq);
-            let w = &net.ft_weight[f];
-            for i in 0..HIDDEN {
-                self.v[p][i] = self.v[p][i].wrapping_sub(w[i]);
-            }
+            sub_slice(&mut self.v[p], &net.ft_weight[f]);
         }
     }
 
@@ -225,6 +219,30 @@ impl Accumulator {
     }
 }
 
+// The accumulator update is the hottest loop in the engine: HIDDEN i16 adds
+// per changed feature, several times per node. Iterating over equal-length
+// chunks lets the autovectorizer emit SIMD without unsafe intrinsics, and
+// keeps the code portable across x86 and ARM.
+const LANES: usize = 16;
+
+#[inline(always)]
+fn add_slice(acc: &mut [i16; HIDDEN], w: &[i16; HIDDEN]) {
+    for (a, b) in acc.chunks_exact_mut(LANES).zip(w.chunks_exact(LANES)) {
+        for i in 0..LANES {
+            a[i] = a[i].wrapping_add(b[i]);
+        }
+    }
+}
+
+#[inline(always)]
+fn sub_slice(acc: &mut [i16; HIDDEN], w: &[i16; HIDDEN]) {
+    for (a, b) in acc.chunks_exact_mut(LANES).zip(w.chunks_exact(LANES)) {
+        for i in 0..LANES {
+            a[i] = a[i].wrapping_sub(b[i]);
+        }
+    }
+}
+
 // Clipped ReLU: activations are clamped to [0, QA] so the product stays in
 // range for i16 math.
 #[inline(always)]
@@ -235,11 +253,14 @@ fn crelu(x: i16) -> i32 {
 pub fn evaluate(net: &Network, acc: &Accumulator, side: Color) -> Score {
     // The side to move always reads perspective 0 of the pair.
     let (us, them) = if side == Color::White { (0, 1) } else { (1, 0) };
-    let mut sum: i64 = 0;
+    // i32 accumulation is enough: HIDDEN * QA * 32767 stays well inside range,
+    // and it vectorizes where i64 would not.
+    let mut sum: i32 = 0;
     for i in 0..HIDDEN {
-        sum += crelu(acc.v[us][i]) as i64 * net.out_weight[i] as i64;
-        sum += crelu(acc.v[them][i]) as i64 * net.out_weight[HIDDEN + i] as i64;
+        sum += crelu(acc.v[us][i]) * net.out_weight[i] as i32;
+        sum += crelu(acc.v[them][i]) * net.out_weight[HIDDEN + i] as i32;
     }
+    let sum = sum as i64;
     // Activations carry a factor of QA and out_weight a factor of QB, so the
     // product is QA*QB times the float logit. out_bias is stored at that same
     // combined scale. Convert the logit to centipawns with SCALE.
@@ -477,4 +498,38 @@ mod incremental_tests {
         let mut stack = AccStack::new(&net, &board);
         walk(&net, &mut board, &mut stack, 3);
     }
+}
+
+// Micro-benchmark entry point: measures accumulator update throughput, the
+// hot loop that dominates NNUE cost.
+pub fn bench_accumulator(iters: u64) -> (f64, i64) {
+    use std::time::Instant;
+    let mut net: Box<Network> = unsafe {
+        let l = std::alloc::Layout::new::<Network>();
+        let p = std::alloc::alloc_zeroed(l) as *mut Network;
+        Box::from_raw(p)
+    };
+    let mut s = 0x2545F4914F6CDD1Du64;
+    let mut next = || {
+        s ^= s >> 12; s ^= s << 25; s ^= s >> 27;
+        (s.wrapping_mul(0x2545F4914F6CDD1D) >> 50) as i16
+    };
+    for i in 0..FT_SIZE { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
+
+    let board = Board::startpos();
+    let mut acc = Accumulator::new(&net);
+    acc.refresh(&net, &board);
+
+    let start = Instant::now();
+    let mut sink: i64 = 0;
+    for i in 0..iters {
+        let sq = (i % 64) as u8;
+        acc.add(&net, Color::White, Piece::Knight, sq);
+        acc.sub(&net, Color::White, Piece::Knight, sq);
+        sink = sink.wrapping_add(acc.v[0][(i % HIDDEN as u64) as usize] as i64);
+    }
+    let secs = start.elapsed().as_secs_f64();
+    // Two updates per iteration, each touching HIDDEN values in 2 perspectives.
+    let ops = iters as f64 * 2.0 * 2.0 * HIDDEN as f64;
+    (ops / secs / 1e9, sink)
 }

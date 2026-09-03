@@ -70,6 +70,11 @@ fn main() {
             let nodes: u64 = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(20000);
             match_play::run(net.as_deref(), games, nodes);
         }
+        Some("bench") => {
+            let iters: u64 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(2_000_000);
+            let (gops, sink) = nnue::bench_accumulator(iters);
+            println!("accumulator: {:.2} G i16-ops/sec (checksum {})", gops, sink);
+        }
         Some("serve") | Some("web") => {
             let port = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8080);
             server::run(port);

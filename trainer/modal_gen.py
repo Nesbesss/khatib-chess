@@ -30,13 +30,14 @@ image = (
 vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
 
 
-@app.function(image=image, timeout=60 * 60 * 2, cpu=8, max_containers=100)
+@app.function(image=image, timeout=60 * 60 * 2, cpu=4, memory=8192,
+              max_containers=100, retries=2)
 def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int) -> bytes:
     """Self-play `games` games, then label every position with Stockfish."""
     import subprocess, sys, os
 
     raw = f"/tmp/raw_{shard}.txt"
-    subprocess.run(["chess", "datagen", str(games), str(gen_depth), raw, "8"],
+    subprocess.run(["chess", "datagen", str(games), str(gen_depth), raw, "4"],
                    check=True, capture_output=True)
 
     # Deduplicate before labeling: repeated positions waste Stockfish time.
@@ -55,7 +56,7 @@ def gen_and_label(shard: int, games: int, gen_depth: int, sf_depth: int) -> byte
 
     labeled = f"/tmp/lab_{shard}.txt"
     subprocess.run([sys.executable, "/root/label.py", "--in", uniq,
-                    "--out", labeled, "--depth", str(sf_depth), "--workers", "8"],
+                    "--out", labeled, "--depth", str(sf_depth), "--workers", "4"],
                    check=True)
     with open(labeled, "rb") as f:
         return f.read()
