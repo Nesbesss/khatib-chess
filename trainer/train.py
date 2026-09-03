@@ -10,8 +10,15 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-INPUT, HIDDEN = 768, 512
-QA, QB, SCALE = 255, 64, 400          # must match src/nnue.rs
+INPUT, HIDDEN = 768, 1024
+BUCKETS = 4                            # king buckets; must match src/nnue.rs
+FT_SIZE = INPUT * BUCKETS
+QA, QB, SCALE = 255, 64, 400           # must match src/nnue.rs
+
+# King-square -> bucket, mirroring KING_BUCKET in src/nnue.rs.
+KING_BUCKET = [
+    0, 0, 1, 1, 2, 2, 3, 3,
+] * 8
 
 PIECE_IDX = {'p':0,'n':1,'b':2,'r':3,'q':4,'k':5}
 
@@ -21,10 +28,12 @@ def fen_to_features(fen):
 
     Mirrors Accumulator::feature in src/nnue.rs: black's view flips the board
     vertically and swaps piece colors, so 'my pieces' always land in slots
-    0..384 from whichever side is looking.
+    0..384 from whichever side is looking. Indices are offset by the king
+    bucket of the perspective whose view they belong to.
     """
     board, stm = fen.split(' ')[0], fen.split(' ')[1]
-    w_idx, b_idx = [], []
+    raw = []
+    wk = bk = 0
     sq = 56  # FEN starts at a8; squares are little-endian rank-file
     for ch in board:
         if ch == '/':
@@ -34,11 +43,22 @@ def fen_to_features(fen):
         else:
             is_white = ch.isupper()
             piece = PIECE_IDX[ch.lower()]
-            # White's view: own pieces first.
-            w_idx.append((0 if is_white else 1) * 384 + piece * 64 + sq)
-            # Black's view: mirror rank, swap colors.
-            b_idx.append((1 if is_white else 0) * 384 + piece * 64 + (sq ^ 56))
+            if piece == 5:
+                if is_white:
+                    wk = sq
+                else:
+                    bk = sq
+            raw.append((is_white, piece, sq))
             sq += 1
+
+    w_bucket = KING_BUCKET[wk]
+    b_bucket = KING_BUCKET[bk ^ 56]
+    w_idx, b_idx = [], []
+    for is_white, piece, s in raw:
+        w_idx.append(w_bucket * INPUT
+                     + (0 if is_white else 1) * 384 + piece * 64 + s)
+        b_idx.append(b_bucket * INPUT
+                     + (1 if is_white else 0) * 384 + piece * 64 + (s ^ 56))
     return w_idx, b_idx, (0 if stm == 'w' else 1)
 
 
@@ -101,32 +121,37 @@ class PositionSet(Dataset):
 
 
 def collate(batch):
-    """Build dense one-hot batches.
+    """Pack active feature indices for EmbeddingBag.
 
-    A position has at most 32 pieces, so these rows are very sparse — but a
-    batch is only (batch x 768) floats, and dense works on every backend
-    (MPS has no sparse COO support) while being faster than sparse matmul at
-    this width.
+    A position sets at most 32 of FT_SIZE inputs, so a dense one-hot row would
+    be 99% zeros. EmbeddingBag sums the active weight rows directly — the same
+    computation as the dense matmul, at a fraction of the memory and time.
+    Returns flat index arrays plus per-row offsets.
     """
     n = len(batch)
-    W = torch.zeros(n, INPUT)
-    B = torch.zeros(n, INPUT)
+    w_flat, b_flat = [], []
+    w_off, b_off = [], []
     stms = torch.empty(n, dtype=torch.long)
     scores = torch.empty(n, dtype=torch.float32)
     wdls = torch.empty(n, dtype=torch.float32)
     for i, (w, b, stm, sc, wd) in enumerate(batch):
-        W[i, torch.from_numpy(w.astype('int64'))] = 1.0
-        B[i, torch.from_numpy(b.astype('int64'))] = 1.0
-        stms[i] = stm
-        scores[i] = sc
-        wdls[i] = wd
+        w_off.append(len(w_flat)); b_off.append(len(b_flat))
+        w_flat.extend(w.tolist()); b_flat.extend(b.tolist())
+        stms[i] = stm; scores[i] = sc; wdls[i] = wd
+    W = (torch.tensor(w_flat, dtype=torch.long),
+         torch.tensor(w_off, dtype=torch.long))
+    B = (torch.tensor(b_flat, dtype=torch.long),
+         torch.tensor(b_off, dtype=torch.long))
     return W, B, stms, scores, wdls
 
 
 class NNUE(nn.Module):
     def __init__(self):
         super().__init__()
-        self.ft = nn.Linear(INPUT, HIDDEN)
+        # EmbeddingBag with mode='sum' is exactly a linear layer applied to a
+        # one-hot-sum input, but reads only the active rows.
+        self.ft = nn.EmbeddingBag(FT_SIZE, HIDDEN, mode='sum')
+        self.ft_bias = nn.Parameter(torch.zeros(HIDDEN))
         self.out = nn.Linear(HIDDEN * 2, 1)
         # Init wide enough that clipped-ReLU activations actually occupy
         # [0,1]. Too small and every quantized weight rounds toward zero,
@@ -137,7 +162,6 @@ class NNUE(nn.Module):
         # network grows the weights it needs, while a large init just pins
         # units at the clamp bounds and loses capacity.
         nn.init.uniform_(self.ft.weight, -0.08, 0.08)
-        nn.init.zeros_(self.ft.bias)
         nn.init.uniform_(self.out.weight, -0.4, 0.4)
         nn.init.zeros_(self.out.bias)
 
@@ -150,12 +174,12 @@ class NNUE(nn.Module):
         """
         with torch.no_grad():
             self.ft.weight.clamp_(-1.98, 1.98)
-            self.ft.bias.clamp_(-1.98, 1.98)
+            self.ft_bias.clamp_(-1.98, 1.98)
             self.out.weight.clamp_(-127 / QB, 127 / QB)
 
     def forward(self, W, B, stm):
-        aw = self.ft(W)   # white-perspective accumulator
-        ab = self.ft(B)   # black-perspective accumulator
+        aw = self.ft(W[0], W[1]) + self.ft_bias   # white-perspective
+        ab = self.ft(B[0], B[1]) + self.ft_bias   # black-perspective
         # Order the pair as [side-to-move, opponent] to match inference.
         stm = stm.unsqueeze(1).float()
         us = aw * (1 - stm) + ab * stm
@@ -190,8 +214,8 @@ def blended_target(scores, wdls, lam):
 
 def quantize(model, path):
     """Write the flat int16 layout src/nnue.rs::load expects."""
-    ftw = model.ft.weight.detach().cpu().numpy()      # (HIDDEN, INPUT)
-    ftb = model.ft.bias.detach().cpu().numpy()
+    ftw = model.ft.weight.detach().cpu().numpy()      # (FT_SIZE, HIDDEN)
+    ftb = model.ft_bias.detach().cpu().numpy()
     ow = model.out.weight.detach().cpu().numpy()[0]   # (HIDDEN*2,)
     ob = model.out.bias.detach().cpu().numpy()[0]
 
@@ -214,13 +238,13 @@ def quantize(model, path):
         print("WARNING: feature weights are tiny; net may collapse to bias")
 
     with open(path, 'wb') as f:
-        # ft_weight is stored [INPUT][HIDDEN], so transpose from torch's layout.
-        f.write(q_ftw.T.tobytes())
+        # EmbeddingBag stores [FT_SIZE][HIDDEN] already — the engine's layout.
+        f.write(q_ftw.tobytes())
         f.write(q_ftb.tobytes())
         f.write(q_ow.tobytes())
         f.write(struct.pack('<h', int(np.clip(q_ob, -32768, 32767))))
     size = os.path.getsize(path)
-    expected = (INPUT * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2
+    expected = (FT_SIZE * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2
     assert size == expected, f"wrote {size} bytes, engine expects {expected}"
     print(f"wrote {path} ({size:,} bytes)")
 
@@ -283,7 +307,8 @@ def main():
         model.train()
         tot, nb, t0 = 0.0, 0, time.time()
         for W, B, stm, sc, wd in dl:
-            W, B = W.to(dev), B.to(dev)
+            W = (W[0].to(dev), W[1].to(dev))
+            B = (B[0].to(dev), B[1].to(dev))
             stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
             pred = model(W, B, stm)
             loss = nnue_loss(pred, sc, wd, a.lam)
@@ -298,13 +323,14 @@ def main():
         # gradient and no information. High values mean wasted capacity.
         with torch.no_grad():
             Wb, _Bb, _sb, _sc, _wd = next(iter(vdl))
-            acts = model.ft(Wb.to(dev))
+            acts = model.ft(Wb[0].to(dev), Wb[1].to(dev)) + model.ft_bias
             sat_lo = (acts < 0).float().mean().item()
             sat_hi = (acts > 1).float().mean().item()
         vtot, vnb = 0.0, 0
         with torch.no_grad():
             for W, B, stm, sc, wd in vdl:
-                W, B = W.to(dev), B.to(dev)
+                W = (W[0].to(dev), W[1].to(dev))
+                B = (B[0].to(dev), B[1].to(dev))
                 stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
                 loss = nnue_loss(model(W, B, stm), sc, wd, a.lam)
                 vtot += loss.item(); vnb += 1

@@ -9,7 +9,26 @@ use crate::eval::Score;
 use crate::types::*;
 
 pub const INPUT: usize = 768;   // 64 squares x 6 piece types x 2 colors
-pub const HIDDEN: usize = 512;
+pub const HIDDEN: usize = 1024;
+// King buckets: a piece's value depends on where our king sits, so each king
+// region gets its own weight set. Indexed by the perspective's own king.
+pub const BUCKETS: usize = 4;
+pub const FT_SIZE: usize = INPUT * BUCKETS;
+
+// Maps a king square (from that side's perspective) to a bucket:
+//   0 = queenside castled, 1 = centre-queenside,
+//   2 = centre-kingside,   3 = kingside castled
+#[rustfmt::skip]
+pub const KING_BUCKET: [usize; 64] = [
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+    0, 0, 1, 1, 2, 2, 3, 3,
+];
 
 // Fixed-point scaling. Weights are quantized to i16 so the accumulator can be
 // SIMD-friendly and exact; these constants must match the trainer's.
@@ -19,7 +38,8 @@ pub const SCALE: i32 = 400;     // logit -> centipawn scale
 
 #[repr(C)]
 pub struct Network {
-    pub ft_weight: [[i16; HIDDEN]; INPUT],
+    // Indexed [bucket * INPUT + feature][hidden]
+    pub ft_weight: [[i16; HIDDEN]; FT_SIZE],
     pub ft_bias: [i16; HIDDEN],
     // Output reads both perspectives: [side-to-move, opponent].
     pub out_weight: [i16; HIDDEN * 2],
@@ -30,6 +50,10 @@ pub struct Network {
 #[derive(Clone, Copy)]
 pub struct Accumulator {
     pub v: [[i16; HIDDEN]; 2],
+    // Active king bucket per perspective. When a king move changes this, the
+    // whole perspective must be rebuilt: every feature now indexes different
+    // weights.
+    pub bucket: [usize; 2],
 }
 
 // A stack of accumulators, one per ply. Pushing copies the parent and applies
@@ -60,6 +84,22 @@ impl AccStack {
     pub fn push(&mut self, net: &Network, board: &Board, m: crate::types::Move) {
         let mut acc = *self.top();
         let us = board.side;
+
+        // A king move that crosses a bucket boundary changes which weight set
+        // every feature of that perspective indexes, so deltas are meaningless
+        // and the perspective must be rebuilt from scratch.
+        if let Some((_, Piece::King)) = board.piece_at(m.from()) {
+            let new_bucket = Accumulator::bucket_of(us, m.to());
+            if new_bucket != acc.bucket[us.idx()] {
+                let mut after = board.clone();
+                after.make_move(m);
+                let mut fresh = Accumulator::new(net);
+                fresh.refresh(net, &after);
+                self.stack.push(fresh);
+                return;
+            }
+        }
+
         let them = us.flip();
         let from = m.from();
         let to = m.to();
@@ -118,7 +158,14 @@ impl AccStack {
 
 impl Accumulator {
     pub fn new(net: &Network) -> Accumulator {
-        Accumulator { v: [net.ft_bias; 2] }
+        Accumulator { v: [net.ft_bias; 2], bucket: [0; 2] }
+    }
+
+    // Bucket for `perspective`, from its own king's square.
+    #[inline(always)]
+    pub fn bucket_of(perspective: Color, king_sq: u8) -> usize {
+        let sq = if perspective == Color::White { king_sq } else { king_sq ^ 56 };
+        KING_BUCKET[sq as usize]
     }
 
     // Feature index for (piece, color, square) from `perspective`'s view.
@@ -137,7 +184,7 @@ impl Accumulator {
     #[inline(always)]
     pub fn add(&mut self, net: &Network, color: Color, piece: Piece, sq: u8) {
         for (p, persp) in [Color::White, Color::Black].iter().enumerate() {
-            let f = Self::feature(*persp, color, piece, sq);
+            let f = self.bucket[p] * INPUT + Self::feature(*persp, color, piece, sq);
             let w = &net.ft_weight[f];
             for i in 0..HIDDEN {
                 self.v[p][i] = self.v[p][i].wrapping_add(w[i]);
@@ -148,7 +195,7 @@ impl Accumulator {
     #[inline(always)]
     pub fn sub(&mut self, net: &Network, color: Color, piece: Piece, sq: u8) {
         for (p, persp) in [Color::White, Color::Black].iter().enumerate() {
-            let f = Self::feature(*persp, color, piece, sq);
+            let f = self.bucket[p] * INPUT + Self::feature(*persp, color, piece, sq);
             let w = &net.ft_weight[f];
             for i in 0..HIDDEN {
                 self.v[p][i] = self.v[p][i].wrapping_sub(w[i]);
@@ -160,6 +207,10 @@ impl Accumulator {
     // bucketed architectures; here it is the fallback path.
     pub fn refresh(&mut self, net: &Network, board: &Board) {
         self.v = [net.ft_bias; 2];
+        self.bucket = [
+            Self::bucket_of(Color::White, board.king_square(Color::White)),
+            Self::bucket_of(Color::Black, board.king_square(Color::Black)),
+        ];
         for color in [Color::White, Color::Black] {
             for piece in [Piece::Pawn, Piece::Knight, Piece::Bishop,
                           Piece::Rook, Piece::Queen, Piece::King] {
@@ -197,10 +248,11 @@ pub fn evaluate(net: &Network, acc: &Accumulator, side: Color) -> Score {
 }
 
 // Load a network from the flat little-endian i16 layout the trainer writes:
-//   ft_weight [768][512] | ft_bias [512] | out_weight [1024] | out_bias [1]
+//   ft_weight [BUCKETS*768][HIDDEN] | ft_bias [HIDDEN]
+//   | out_weight [HIDDEN*2] | out_bias [1]
 pub fn load(path: &str) -> std::io::Result<Box<Network>> {
     let bytes = std::fs::read(path)?;
-    let expected = (INPUT * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2;
+    let expected = (FT_SIZE * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2;
     if bytes.len() != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -217,7 +269,7 @@ pub fn load(path: &str) -> std::io::Result<Box<Network>> {
         Box::from_raw(ptr)
     };
 
-    for i in 0..INPUT {
+    for i in 0..FT_SIZE {
         for j in 0..HIDDEN {
             net.ft_weight[i][j] = vals.next().unwrap();
         }
@@ -331,7 +383,7 @@ mod incremental_tests {
             s ^= s >> 12; s ^= s << 25; s ^= s >> 27;
             (s.wrapping_mul(0x2545F4914F6CDD1D) >> 48) as i16 / 64
         };
-        for i in 0..INPUT { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
+        for i in 0..FT_SIZE { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
         for j in 0..HIDDEN { net.ft_bias[j] = next(); }
         for j in 0..HIDDEN * 2 { net.out_weight[j] = next(); }
         net.out_bias = next();
@@ -381,6 +433,39 @@ mod incremental_tests {
         ).unwrap();
         let mut stack = AccStack::new(&net, &board);
         walk(&net, &mut board, &mut stack, 3);
+    }
+
+    #[test]
+    fn incremental_matches_refresh_king_walk() {
+        // A bare-king position forces repeated bucket transitions: the king
+        // crosses every file, so every crossing must trigger a refresh.
+        let net = random_net();
+        let mut board = Board::from_fen("8/8/8/3k4/8/3K4/8/8 w - - 0 1").unwrap();
+        let mut stack = AccStack::new(&net, &board);
+        walk(&net, &mut board, &mut stack, 4);
+    }
+
+    #[test]
+    fn incremental_matches_refresh_castling_buckets() {
+        // Castling moves the king two files, which changes bucket in both
+        // directions — the case a naive delta update gets silently wrong.
+        let net = random_net();
+        let mut board = Board::from_fen(
+            "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1"
+        ).unwrap();
+        let mut stack = AccStack::new(&net, &board);
+        walk(&net, &mut board, &mut stack, 3);
+    }
+
+    #[test]
+    fn bucket_changes_are_detected() {
+        // e1 and g1 must land in different buckets, or castling would never
+        // trigger a refresh and the tests above would prove nothing.
+        let e1 = Accumulator::bucket_of(Color::White, parse_square("e1").unwrap());
+        let g1 = Accumulator::bucket_of(Color::White, parse_square("g1").unwrap());
+        let c1 = Accumulator::bucket_of(Color::White, parse_square("c1").unwrap());
+        assert_ne!(e1, g1, "kingside castling must change bucket");
+        assert_ne!(e1, c1, "queenside castling must change bucket");
     }
 
     #[test]
