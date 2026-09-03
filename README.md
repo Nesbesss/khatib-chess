@@ -115,3 +115,14 @@ node counts, including the positions that catch en-passant discovered check,
 promotion and castling edge cases. The NNUE tests verify that incremental
 accumulator updates are exactly equal to a full refresh, and that the
 fixed-point arithmetic has not drifted.
+
+### Measurements that said "don't bother"
+
+Two optimisations looked obviously right and turned out not to be:
+
+- **Deeper self-play search for position generation.** Depth 6 and depth 10
+  labels correlate at 0.98 with zero sign flips, so a deeper teacher buys
+  almost nothing.
+- **Stockfish depth 12 instead of depth 10.** Correlation 0.982, median
+  difference 22 cp, 7% disagreeing by more than 100 cp — for 2.7x the compute.
+  More positions is the better use of the same budget.
