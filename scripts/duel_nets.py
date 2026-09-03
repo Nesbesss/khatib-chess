@@ -59,7 +59,8 @@ class Engine:
 
 def elo(score, n):
     if score <= 0 or score >= 1:
-        return (float('inf') if score >= 1 else float('-inf')), 0.0
+        # Clamp instead of returning inf: callers parse this as an integer.
+        return (800.0 if score >= 1 else -800.0), 0.0
     e = -400 * math.log10(1 / score - 1)
     se = math.sqrt(score * (1 - score) / n)
     return e, 1.96 * (400 / math.log(10) * se / (score * (1 - score)))
