@@ -84,16 +84,31 @@ fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<OutSampl
     let mut result: f32 = 0.5;   // from White's perspective
     let mut decided = false;
 
-    // Random opening: 8-12 plies of uniformly random legal moves. This is the
-    // cheap way to get positional variety without an opening book.
-    let opening_len = 8 + rng.below(5);
+    // Opening randomization, but filtered: uniformly random moves hang pieces
+    // constantly, which floods the data with decided positions and teaches
+    // the net only "who is up material". Pick among moves that keep the game
+    // roughly balanced instead.
+    let opening_len = 6 + rng.below(5);
     for _ in 0..opening_len {
         let list = generate(&board, GenMode::All);
         if list.len == 0 { return Vec::new(); }
-        board.make_move(list[rng.below(list.len)]);
+
+        // Try a few random candidates; keep the first that doesn't wreck the
+        // position. Falls back to any legal move if none qualify.
+        let mut chosen = list[rng.below(list.len)];
+        for _ in 0..6 {
+            let cand = list[rng.below(list.len)];
+            let undo = board.make_move(cand);
+            let after = -crate::eval::evaluate_hce(&board);
+            let terminal = generate(&board, GenMode::All).len == 0;
+            board.unmake_move(cand, undo);
+            if !terminal && after.abs() < 150 { chosen = cand; break; }
+        }
+        board.make_move(chosen);
     }
-    // Reject openings that already blundered into a terminal position.
     if generate(&board, GenMode::All).len == 0 { return Vec::new(); }
+    // Reject any opening that still ended up lopsided.
+    if crate::eval::evaluate_hce(&board).abs() > 250 { return Vec::new(); }
 
     searcher.repetitions.clear();
     let limits = || SearchLimits { depth, ..Default::default() };
@@ -110,10 +125,13 @@ fn play_game(searcher: &mut Searcher, rng: &mut Rng, depth: u32) -> Vec<OutSampl
 
         // Skip positions that are noisy training targets: in check, or where
         // the best move is a capture (the score reflects a pending exchange).
+        // Keep positions that are quiet AND still competitive. A position
+        // that is already winning by a queen teaches nothing but counting.
         let quiet = !board.in_check(board.side)
             && !best.is_capture()
             && !best.is_promotion()
-            && score.abs() < MATE_IN_MAX;
+            && score.abs() < MATE_IN_MAX
+            && score.abs() < 1000;
         if quiet {
             samples.push(Sample {
                 fen: board.to_fen(),

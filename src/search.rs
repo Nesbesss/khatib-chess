@@ -62,13 +62,22 @@ impl Tt {
 
 pub struct SearchLimits {
     pub depth: u32,
+    // Hard limit: abort mid-search once exceeded.
     pub movetime: Option<Duration>,
+    // Soft limit: don't begin a new iteration past this. Lets a promising
+    // depth finish instead of being cut off with a half-searched root.
+    pub soft_time: Option<Duration>,
     pub nodes: Option<u64>,
 }
 
 impl Default for SearchLimits {
     fn default() -> Self {
-        SearchLimits { depth: MAX_PLY as u32, movetime: None, nodes: None }
+        SearchLimits {
+            depth: MAX_PLY as u32,
+            movetime: None,
+            soft_time: None,
+            nodes: None,
+        }
     }
 }
 
@@ -188,6 +197,7 @@ impl Searcher {
         let mut best = Move::NULL;
         let mut best_score = -MATE;
         let mut pv = Vec::new();
+        let mut prev_best = Move::NULL;
 
         for depth in 1..=self.limits.depth {
             let score = self.alphabeta(board, depth as i32, 0, -MATE, MATE, true);
@@ -219,9 +229,17 @@ impl Searcher {
             // Found a forced mate; deeper search can't improve on it.
             if score.abs() > MATE_IN_MAX { break; }
 
-            // Don't start a depth we almost certainly can't finish.
-            if let Some(mt) = self.limits.movetime {
-                if self.start.elapsed() > mt.mul_f32(0.5) { break; }
+            // Don't start a depth we almost certainly can't finish. A stable
+            // best move lets us stop earlier; an unstable one buys more time.
+            let soft = self.limits.soft_time.or_else(||
+                self.limits.movetime.map(|m| m.mul_f32(0.5)));
+            if let Some(soft) = soft {
+                let stable = best == prev_best;
+                prev_best = best;
+                let factor = if stable { 1.0 } else { 1.35 };
+                if self.start.elapsed().as_secs_f32() > soft.as_secs_f32() * factor {
+                    break;
+                }
             }
         }
 

@@ -218,11 +218,14 @@ def nnue_loss(pred_logit, scores, wdls, lam):
     """
     target = blended_target(scores, wdls, lam)
     wdl_loss = F.mse_loss(torch.sigmoid(pred_logit), target)
-    # Anchor: predicted logit should equal score/SCALE, clamped to the range
-    # where the sigmoid is informative.
+    # Anchor: the predicted logit should equal score/SCALE. Without this the
+    # WDL term is minimized by shrinking the logit into the sigmoid's flat
+    # region, which starves the output layer and destroys int16 precision.
+    # The WDL term lives on [0,1] while the anchor spans [-4,4], so the
+    # anchor needs a large nominal weight to have comparable influence.
     anchor_t = torch.clamp(scores / SCALE, -4.0, 4.0)
     anchor_loss = F.mse_loss(pred_logit, anchor_t)
-    return wdl_loss + 0.05 * anchor_loss
+    return wdl_loss + 0.5 * anchor_loss
 
 
 def main():

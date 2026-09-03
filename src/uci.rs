@@ -124,12 +124,20 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
     if let Some(t) = time {
         let inc = inc.unwrap_or(0);
         let moves_to_go = get("movestogo").unwrap_or(30).max(1);
-        // Keep a small reserve so we never flag on the move we're computing.
-        let budget = (t / moves_to_go + inc * 3 / 4).min(t.saturating_sub(50));
-        limits.movetime = Some(Duration::from_millis(budget.max(10)));
+        // Reserve an overhead margin so we never flag on the move being
+        // computed; scale it with the clock so blitz stays safe.
+        let overhead = (t / 50).clamp(20, 300);
+        let usable = t.saturating_sub(overhead);
+        // Soft target: the share of the clock this move deserves.
+        let soft = (usable / moves_to_go + inc * 3 / 4).max(5);
+        // Hard cap: never spend more than a fifth of what's left on one move.
+        let hard = (usable / 4).max(soft).min(usable);
+        limits.soft_time = Some(Duration::from_millis(soft));
+        limits.movetime = Some(Duration::from_millis(hard));
     }
     if tokens.contains(&"infinite") {
         limits.movetime = None;
+        limits.soft_time = None;
         limits.depth = MAX_PLY as u32;
     }
     limits
