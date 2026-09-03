@@ -1,7 +1,7 @@
 // UCI protocol: the lingua franca for chess GUIs and match runners.
 use crate::board::{Board, START_FEN};
 use crate::movegen::{generate, GenMode};
-use crate::search::{SearchLimits, Searcher, MAX_PLY};
+use crate::search::{SearchLimits, Searcher, ThreadedSearcher, MAX_PLY};
 use crate::types::*;
 use std::io::{self, BufRead, Write};
 use std::sync::atomic::Ordering;
@@ -9,7 +9,7 @@ use std::time::Duration;
 
 pub fn run() {
     let mut board = Board::startpos();
-    let mut searcher = Searcher::new(64);
+    let mut searcher = ThreadedSearcher::new(64, 1);
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -22,30 +22,34 @@ pub fn run() {
                 println!("id name Chess");
                 println!("id author nesbes");
                 println!("option name Hash type spin default 64 min 1 max 4096");
+                println!("option name Threads type spin default 1 min 1 max 64");
                 println!("uciok");
             }
             "isready" => println!("readyok"),
             "ucinewgame" => {
                 board = Board::startpos();
-                searcher.tt.clear();
-                searcher.repetitions.clear();
+                searcher.clear();
             }
             "setoption" => {
                 // setoption name Hash value 256
                 if let Some(i) = tokens.iter().position(|&t| t == "name") {
-                    if tokens.get(i + 1) == Some(&"Hash") {
-                        if let Some(v) = tokens.iter().position(|&t| t == "value") {
-                            if let Some(mb) = tokens.get(v + 1).and_then(|s| s.parse().ok()) {
-                                searcher = Searcher::new(mb);
-                            }
+                    let value = tokens.iter().position(|&t| t == "value")
+                        .and_then(|v| tokens.get(v + 1))
+                        .and_then(|s| s.parse::<usize>().ok());
+                    match (tokens.get(i + 1), value) {
+                        (Some(&"Hash"), Some(mb)) => {
+                            let n = searcher.threads;
+                            searcher = ThreadedSearcher::new(mb, n);
                         }
+                        (Some(&"Threads"), Some(n)) => searcher.set_threads(n),
+                        _ => {}
                     }
                 }
             }
             "position" => set_position(&mut board, &mut searcher, &tokens),
             "go" => {
                 let limits = parse_go(&tokens, board.side);
-                let (best, _) = searcher.search(&mut board, limits, true);
+                let (best, _) = searcher.search(&board, limits, true);
                 println!("bestmove {}", best.to_uci());
             }
             "stop" => searcher.stop.store(true, Ordering::Relaxed),
@@ -76,7 +80,7 @@ pub fn run() {
     }
 }
 
-fn set_position(board: &mut Board, searcher: &mut Searcher, tokens: &[&str]) {
+fn set_position(board: &mut Board, searcher: &mut ThreadedSearcher, tokens: &[&str]) {
     let mut i = 1;
     let fen = if tokens.get(i) == Some(&"startpos") {
         i += 1;

@@ -4,14 +4,15 @@ use crate::board::{Board, Undo};
 use crate::eval::*;
 use crate::movegen::*;
 use crate::types::*;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 pub const MAX_PLY: usize = 128;
 
 #[derive(Copy, Clone, PartialEq)]
-pub enum Bound { Exact, Lower, Upper }
+#[repr(u8)]
+pub enum Bound { Exact = 0, Lower = 1, Upper = 2 }
 
 #[derive(Copy, Clone)]
 pub struct TtEntry {
@@ -23,40 +24,86 @@ pub struct TtEntry {
 }
 
 impl TtEntry {
-    const EMPTY: TtEntry = TtEntry {
-        key: 0, mv: Move::NULL, score: 0, depth: -1, bound: Bound::Exact,
-    };
+    // Pack move, score, depth and bound into 64 bits so an entry is a pair of
+    // atomics rather than a lock.
+    #[inline(always)]
+    fn pack(mv: Move, score: i16, depth: i8, bound: Bound) -> u64 {
+        (mv.0 as u64)
+            | ((score as u16 as u64) << 16)
+            | ((depth as u8 as u64) << 32)
+            | ((bound as u64) << 40)
+    }
+
+    #[inline(always)]
+    fn unpack(data: u64) -> (Move, i16, i8, Bound) {
+        let mv = Move((data & 0xFFFF) as u16);
+        let score = ((data >> 16) & 0xFFFF) as u16 as i16;
+        let depth = ((data >> 32) & 0xFF) as u8 as i8;
+        let bound = match (data >> 40) & 0x3 {
+            0 => Bound::Exact,
+            1 => Bound::Lower,
+            _ => Bound::Upper,
+        };
+        (mv, score, depth, bound)
+    }
 }
 
+// Lock-free shared transposition table.
+//
+// Each slot stores `key ^ data` alongside `data`. A reader recomputes the XOR
+// and only trusts the entry if it matches: a torn read from another thread's
+// concurrent write fails that check and is discarded, so threads can share the
+// table without locking and without ever acting on a corrupt entry.
 pub struct Tt {
-    entries: Vec<TtEntry>,
+    keys: Vec<AtomicU64>,
+    data: Vec<AtomicU64>,
     mask: usize,
 }
 
 impl Tt {
     pub fn new(mb: usize) -> Tt {
-        // Round down to a power of two so indexing is a mask, not a modulo.
-        let n = (mb * 1024 * 1024 / std::mem::size_of::<TtEntry>()).next_power_of_two() / 2;
-        Tt { entries: vec![TtEntry::EMPTY; n], mask: n - 1 }
-    }
-
-    pub fn clear(&mut self) {
-        self.entries.fill(TtEntry::EMPTY);
-    }
-
-    #[inline(always)]
-    pub fn probe(&self, key: u64) -> Option<&TtEntry> {
-        let e = &self.entries[(key as usize) & self.mask];
-        if e.key == key { Some(e) } else { None }
-    }
-
-    #[inline(always)]
-    pub fn store(&mut self, key: u64, mv: Move, score: i16, depth: i8, bound: Bound) {
-        let slot = &mut self.entries[(key as usize) & self.mask];
-        // Depth-preferred replacement, but always take an empty or stale slot.
-        if slot.key != key || depth >= slot.depth {
-            *slot = TtEntry { key, mv, score, depth, bound };
+        let n = (mb * 1024 * 1024 / 16).next_power_of_two() / 2;
+        let n = n.max(1024);
+        Tt {
+            keys: (0..n).map(|_| AtomicU64::new(0)).collect(),
+            data: (0..n).map(|_| AtomicU64::new(0)).collect(),
+            mask: n - 1,
         }
+    }
+
+    pub fn clear(&self) {
+        for k in &self.keys { k.store(0, Ordering::Relaxed); }
+        for d in &self.data { d.store(0, Ordering::Relaxed); }
+    }
+
+    #[inline(always)]
+    pub fn probe(&self, key: u64) -> Option<TtEntry> {
+        let i = (key as usize) & self.mask;
+        let stored_key = self.keys[i].load(Ordering::Relaxed);
+        let data = self.data[i].load(Ordering::Relaxed);
+        // Verify: a torn pair will not satisfy this.
+        if stored_key ^ data != key || data == 0 {
+            return None;
+        }
+        let (mv, score, depth, bound) = TtEntry::unpack(data);
+        Some(TtEntry { key, mv, score, depth, bound })
+    }
+
+    #[inline(always)]
+    pub fn store(&self, key: u64, mv: Move, score: i16, depth: i8, bound: Bound) {
+        let i = (key as usize) & self.mask;
+        let stored_key = self.keys[i].load(Ordering::Relaxed);
+        let old = self.data[i].load(Ordering::Relaxed);
+        // Depth-preferred replacement; always take an empty or foreign slot.
+        if stored_key ^ old == key && old != 0 {
+            let (_, _, old_depth, _) = TtEntry::unpack(old);
+            if depth < old_depth {
+                return;
+            }
+        }
+        let data = TtEntry::pack(mv, score, depth, bound);
+        self.keys[i].store(key ^ data, Ordering::Relaxed);
+        self.data[i].store(data, Ordering::Relaxed);
     }
 }
 
@@ -82,7 +129,7 @@ impl Default for SearchLimits {
 }
 
 pub struct Searcher {
-    pub tt: Tt,
+    pub tt: Arc<Tt>,
     pub nodes: u64,
     pub stop: Arc<AtomicBool>,
     start: Instant,
@@ -104,12 +151,19 @@ pub struct Searcher {
     pub forced_net: Option<&'static crate::nnue::Network>,
     // Destination of the capture that led into the current node, or 64.
     last_capture_sq: u8,
+    // Helper threads skip some iterations so they diverge from the main
+    // thread's path and fill the shared table with different information.
+    pub skip_depth: usize,
 }
 
 impl Searcher {
     pub fn new(tt_mb: usize) -> Searcher {
+        Searcher::with_tt(Arc::new(Tt::new(tt_mb)))
+    }
+
+    pub fn with_tt(tt: Arc<Tt>) -> Searcher {
         Searcher {
-            tt: Tt::new(tt_mb),
+            tt,
             nodes: 0,
             stop: Arc::new(AtomicBool::new(false)),
             start: Instant::now(),
@@ -123,6 +177,7 @@ impl Searcher {
             acc: None,
             forced_net: None,
             last_capture_sq: 64,
+            skip_depth: 0,
         }
     }
 
@@ -203,6 +258,11 @@ impl Searcher {
         let mut prev_best = Move::NULL;
 
         for depth in 1..=self.limits.depth {
+            // Helper threads skip alternate shallow iterations, so they reach
+            // deep nodes on a different schedule than the main thread.
+            if self.skip_depth > 0 && depth > 2 && (depth as usize % 2) == self.skip_depth {
+                continue;
+            }
             // Aspiration windows: the score rarely moves far between
             // iterations, so search a narrow window around the last one and
             // widen only on a fail. Cheaper than a full-width search.
@@ -891,5 +951,87 @@ impl Searcher {
             }
         }
         out
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Lazy SMP: run several searchers on the same position, sharing one
+// transposition table. Threads take slightly different paths (staggered
+// starting depths), and whichever finds something useful publishes it to the
+// shared table, so the others benefit. Simple, and it scales well in practice.
+// ---------------------------------------------------------------------------
+
+pub struct ThreadedSearcher {
+    pub tt: Arc<Tt>,
+    pub threads: usize,
+    pub stop: Arc<AtomicBool>,
+    pub repetitions: Vec<u64>,
+}
+
+impl ThreadedSearcher {
+    pub fn new(tt_mb: usize, threads: usize) -> ThreadedSearcher {
+        ThreadedSearcher {
+            tt: Arc::new(Tt::new(tt_mb)),
+            threads: threads.max(1),
+            stop: Arc::new(AtomicBool::new(false)),
+            repetitions: Vec::new(),
+        }
+    }
+
+    pub fn set_threads(&mut self, n: usize) {
+        self.threads = n.max(1);
+    }
+
+    pub fn clear(&mut self) {
+        self.tt.clear();
+        self.repetitions.clear();
+    }
+
+    pub fn search(&mut self, board: &Board, limits: SearchLimits, verbose: bool)
+        -> (Move, Score)
+    {
+        self.stop.store(false, Ordering::Relaxed);
+
+        // One thread reports; the helpers only enrich the shared table.
+        let result = std::thread::scope(|scope| {
+            let mut handles = Vec::new();
+
+            for id in 1..self.threads {
+                let tt = self.tt.clone();
+                let stop = self.stop.clone();
+                let reps = self.repetitions.clone();
+                let mut b = board.clone();
+                let lim = SearchLimits {
+                    depth: limits.depth,
+                    movetime: limits.movetime,
+                    soft_time: limits.soft_time,
+                    nodes: None, // only the main thread enforces a node cap
+                };
+                handles.push(scope.spawn(move || {
+                    let mut s = Searcher::with_tt(tt);
+                    s.stop = stop;
+                    s.repetitions = reps;
+                    // Stagger helpers so they explore different depths first.
+                    s.skip_depth = id % 2;
+                    s.search(&mut b, lim, false);
+                }));
+            }
+
+            let mut main = Searcher::with_tt(self.tt.clone());
+            main.stop = self.stop.clone();
+            main.repetitions = self.repetitions.clone();
+            let mut b = board.clone();
+            let out = main.search(&mut b, limits, verbose);
+
+            // Main thread finished: tell helpers to stop and collect them.
+            self.stop.store(true, Ordering::Relaxed);
+            for h in handles {
+                let _ = h.join();
+            }
+            (out, main.nodes)
+        });
+
+        self.stop.store(false, Ordering::Relaxed);
+        result.0
     }
 }
