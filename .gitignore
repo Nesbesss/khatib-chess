@@ -2,3 +2,5 @@
 /data
 *.bin
 /baseline/chess_v1
+/data/*.txt
+/data/*.log
