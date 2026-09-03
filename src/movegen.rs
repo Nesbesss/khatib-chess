@@ -42,7 +42,11 @@ pub fn generate(board: &Board, mode: GenMode) -> MoveList {
     let ksq = board.king_square(us);
     let occ = board.all;
     let own = board.occupied[us.idx()];
-    let enemy = board.occupied[them.idx()];
+    // The enemy king is never a legal capture target. Standard perft suites
+    // never expose this (no test position lets a piece capture a king), but
+    // the search reaches such positions, and capturing the king silently
+    // removed it from the board.
+    let enemy = board.occupied[them.idx()] & !board.pieces[them.idx()][Piece::King.idx()];
 
     let checkers = board.attackers_to(ksq, them, occ);
     let num_checkers = checkers.count_ones();
@@ -61,8 +65,12 @@ pub fn generate(board: &Board, mode: GenMode) -> MoveList {
     } else {
         !0u64
     };
+    // Exclude the enemy king from every destination: it is never capturable,
+    // and generating such a move silently removed the king from the board.
+    // `enemy` already excludes it; `!own` does not.
+    let no_king = !board.pieces[them.idx()][Piece::King.idx()];
     let target = match mode {
-        GenMode::All => target & !own,
+        GenMode::All => target & !own & no_king,
         GenMode::Captures => target & enemy,
     };
 
@@ -118,7 +126,11 @@ pub fn generate(board: &Board, mode: GenMode) -> MoveList {
 fn gen_king(board: &Board, list: &mut MoveList, ksq: u8, us: Color, mode: GenMode) {
     let them = us.flip();
     let own = board.occupied[us.idx()];
-    let enemy = board.occupied[them.idx()];
+    // The enemy king is never a legal capture target. Standard perft suites
+    // never expose this (no test position lets a piece capture a king), but
+    // the search reaches such positions, and capturing the king silently
+    // removed it from the board.
+    let enemy = board.occupied[them.idx()] & !board.pieces[them.idx()][Piece::King.idx()];
     let targets = match mode {
         GenMode::All => !own,
         GenMode::Captures => enemy,
@@ -175,7 +187,11 @@ fn gen_pawns(
 ) {
     let them = us.flip();
     let pawns = board.pieces[us.idx()][Piece::Pawn.idx()];
-    let enemy = board.occupied[them.idx()];
+    // The enemy king is never a legal capture target. Standard perft suites
+    // never expose this (no test position lets a piece capture a king), but
+    // the search reaches such positions, and capturing the king silently
+    // removed it from the board.
+    let enemy = board.occupied[them.idx()] & !board.pieces[them.idx()][Piece::King.idx()];
     let occ = board.all;
     let (up, promo_rank, start_rank) = match us {
         Color::White => (8i8, 7u8, 1u8),

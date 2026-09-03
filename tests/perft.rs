@@ -38,3 +38,19 @@ fn perft_deep() {
     assert_eq!(perft(POS5, 5), 89941194);
     assert_eq!(perft(POS6, 5), 164075551);
 }
+
+// A pawn able to capture on the king's square used to generate a
+// promotion-capture of the king, which removed it from the board and made
+// every later king lookup return square 64. No standard perft position
+// exposes this, so it survived 33/33 passing.
+#[test]
+fn king_is_never_capturable() {
+    // Black pawn on g2, white king on h1. Before the fix this generated 15
+    // moves, four of them g2xh1 promotion-captures OF THE KING, which removed
+    // it from the board and made every later king lookup index square 64.
+    assert_eq!(perft("8/8/8/8/8/5k2/6p1/7K b - - 0 1", 1), 11);
+    assert_eq!(perft("8/8/8/8/8/5k2/6p1/7K b - - 0 1", 3), 189);
+    // A knight attacking the enemy king's square must not "capture" it:
+    // without the fix this position generated 8 moves including Nxh3.
+    assert_eq!(perft("8/8/8/8/8/7k/5N2/6K1 w - - 0 1", 1), 7);
+}
