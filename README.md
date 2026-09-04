@@ -138,6 +138,16 @@ fixed-point arithmetic has not drifted.
   defending king holding the opposition evaluates the same as a winning one.
   Only 1.26% of self-play positions have ≤5 pieces, so this is low priority.
 
+### Comparing candidates
+
+Rank two networks by playing them **against each other**, not by comparing
+each against a third party. Measuring both against a common opponent adds
+that opponent's variance to both numbers: on this project, config 1 and
+config 3 were measured at +132 vs +83 against the handcrafted evaluation but
++53 vs +124 against the v1 champion — opposite conclusions from the same two
+nets. `scripts/duel_two_nets.py` plays them head to head in the same binary,
+and promotion requires a margin whose confidence interval excludes zero.
+
 ### Hyperparameter sweep
 
 Measured against the handcrafted eval, same binary, so the numbers are
