@@ -128,6 +128,17 @@ impl Default for SearchLimits {
     }
 }
 
+// reduction = 0.75 + ln(depth)*ln(move_number)/2.25, precomputed.
+static LMR: std::sync::LazyLock<[[i32; 64]; 64]> = std::sync::LazyLock::new(|| {
+    let mut t = [[0i32; 64]; 64];
+    for d in 1..64 {
+        for m in 1..64 {
+            t[d][m] = (0.75 + (d as f64).ln() * (m as f64).ln() / 2.25) as i32;
+        }
+    }
+    t
+});
+
 pub struct Searcher {
     pub tt: Arc<Tt>,
     pub nodes: u64,
@@ -507,7 +518,10 @@ impl Searcher {
                 // list are unlikely to be best, so search them shallower.
                 let mut reduction = 0;
                 if depth >= 3 && is_quiet && !in_check {
-                    reduction = 1 + (depth / 6) + (i / 8) as i32;
+                    // Logarithmic in both depth and move number, the shape
+                    // strong engines converge on: reductions grow fast among
+                    // the first late moves, then flatten out.
+                    reduction = LMR[(depth as usize).min(63)][i.min(63)];
                     if is_pv { reduction -= 1; }
                     reduction = reduction.clamp(0, depth - 2);
                 }

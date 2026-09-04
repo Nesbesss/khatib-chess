@@ -56,13 +56,28 @@ def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float,
 
 
 @app.function(image=image, volumes={"/data": vol}, timeout=60 * 60)
-def upload_chunk(offset: int, data: bytes, first: bool):
+def upload_chunk(offset: int, data: bytes, first: bool, gz: bool = False):
     """Append one chunk of the training file into the volume."""
     mode = "wb" if first else "ab"
-    with open("/data/train.txt", mode) as f:
+    with open("/data/train.txt.gz" if gz else "/data/train.txt", mode) as f:
         f.write(data)
     vol.commit()
     return offset + len(data)
+
+
+@app.function(image=image, volumes={"/data": vol}, timeout=60 * 30)
+def decompress() -> tuple:
+    """Expand train.txt.gz in the volume; return (bytes, lines) of the result."""
+    import gzip, os, shutil
+    src, dst = "/data/train.txt.gz", "/data/train.txt"
+    with gzip.open(src, "rb") as f, open(dst, "wb") as g:
+        shutil.copyfileobj(f, g, 1 << 24)
+    n = 0
+    with open(dst, "rb") as f:
+        for _ in f:
+            n += 1
+    vol.commit()
+    return (os.path.getsize(dst), n)
 
 
 @app.function(image=image, volumes={"/data": vol}, timeout=60 * 10)
@@ -89,10 +104,11 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
          lam: float = 0.7, out: str = "net.nnue", checkpoint_every: int = 0):
     import os
 
+    gz = data.endswith(".gz")
     if not skip_upload:
         size = os.path.getsize(data)
         print(f"uploading {data} ({size/1e6:.0f} MB) to volume...")
-        CHUNK = 64 * 1024 * 1024
+        CHUNK = 16 * 1024 * 1024
         with open(data, "rb") as f:
             first, off = True, 0
             while True:
@@ -100,16 +116,22 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
                 if not buf:
                     break
                 # Split on a line boundary so no sample is cut in half.
-                if len(buf) == CHUNK:
+                if len(buf) == CHUNK and not gz:
                     tail = buf.rfind(b"\n")
                     if tail != -1:
                         f.seek(off + tail + 1)
                         buf = buf[:tail + 1]
-                off = upload_chunk.remote(off, buf, first)
+                off = upload_chunk.remote(off, buf, first, gz)
                 first = False
                 print(f"  {off/1e6:.0f} MB / {size/1e6:.0f} MB", flush=True)
 
-    if not skip_upload:
+    if not skip_upload and gz:
+        print("decompressing on worker...")
+        got_bytes, got_lines = decompress.remote()
+        print(f"volume holds {got_bytes/1e6:.0f} MB / {got_lines:,} lines")
+        if got_lines < 1000:
+            raise SystemExit(f"decompress produced only {got_lines} lines")
+    elif not skip_upload:
         size = os.path.getsize(data)
         got_bytes, got_lines = verify_upload.remote()
         print(f"volume holds {got_bytes/1e6:.0f} MB / {got_lines:,} lines")
