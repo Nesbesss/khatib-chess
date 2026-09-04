@@ -138,6 +138,21 @@ fixed-point arithmetic has not drifted.
   defending king holding the opposition evaluates the same as a winning one.
   Only 1.26% of self-play positions have ≤5 pieces, so this is low priority.
 
+### Hyperparameter sweep
+
+Measured against the handcrafted eval, same binary, so the numbers are
+comparable:
+
+| Config | Result |
+|---|---|
+| 50 epochs, λ=0.9, lr 1e-3 | **+132 Elo** — best |
+| 80 epochs, λ=0.8, lr 1e-3 | +89 Elo |
+| 30 epochs, λ=1.0, lr 7e-4 | +83 Elo |
+
+More epochs and a lower learning rate both failed to improve on the baseline
+configuration, which points at training data as the binding constraint rather
+than optimisation.
+
 ### Measurements that said "don't bother"
 
 Two optimisations looked obviously right and turned out not to be:
