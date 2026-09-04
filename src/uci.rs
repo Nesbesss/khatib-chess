@@ -24,7 +24,7 @@ pub fn run() {
 
         match cmd {
             "uci" => {
-                println!("id name Chess");
+                println!("id name Kraken 1.0");
                 println!("id author nesbes");
                 println!("option name Hash type spin default 64 min 1 max 4096");
                 println!("option name Threads type spin default 1 min 1 max 64");
