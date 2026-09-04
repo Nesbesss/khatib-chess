@@ -2,7 +2,7 @@
 # Build Chess.app with the engine and network bundled inside.
 set -e
 cd "$(dirname "$0")"
-APP="$HOME/Applications/Kraken.app"
+APP="$HOME/Applications/Khatib.app"
 RES="$APP/Contents/Resources"
 MACOS="$APP/Contents/MacOS"
 
@@ -12,7 +12,7 @@ MACOS="$APP/Contents/MacOS"
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RES"
 
-swiftc -O -o "$MACOS/Kraken" Sources/Engine.swift Sources/main.swift \
+swiftc -O -o "$MACOS/Khatib" Sources/Engine.swift Sources/main.swift \
   -target arm64-apple-macosx13.0 -framework AppKit
 
 cp ../target/release/chess "$RES/chess"
@@ -24,12 +24,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleName</key><string>Kraken</string>
-  <key>CFBundleDisplayName</key><string>Kraken</string>
-  <key>CFBundleIdentifier</key><string>local.kraken.chess</string>
+  <key>CFBundleName</key><string>Khatib</string>
+  <key>CFBundleDisplayName</key><string>Khatib</string>
+  <key>CFBundleIdentifier</key><string>local.khatib.chess</string>
   <key>CFBundleVersion</key><string>1.0</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
-  <key>CFBundleExecutable</key><string>Kraken</string>
+  <key>CFBundleExecutable</key><string>Khatib</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>NSHighResolutionCapable</key><true/>

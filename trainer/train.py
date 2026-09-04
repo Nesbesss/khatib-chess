@@ -148,11 +148,11 @@ def collate(batch):
     stms = torch.empty(n, dtype=torch.long)
     scores = torch.empty(n, dtype=torch.float32)
     wdls = torch.empty(n, dtype=torch.float32)
-    obs = torch.empty(n, dtype=torch.long)
+    obs = torch.zeros(n, dtype=torch.long)
     for i, (w, b, stm, sc, wd, ob) in enumerate(batch):
         w_off.append(len(w_flat)); b_off.append(len(b_flat))
         w_flat.extend(w.tolist()); b_flat.extend(b.tolist())
-        stms[i] = stm; scores[i] = sc; wdls[i] = wd
+        stms[i] = stm; scores[i] = sc; wdls[i] = wd; obs[i] = ob
     W = (torch.tensor(w_flat, dtype=torch.long),
          torch.tensor(w_off, dtype=torch.long))
     B = (torch.tensor(b_flat, dtype=torch.long),

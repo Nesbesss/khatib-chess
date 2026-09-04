@@ -195,7 +195,7 @@ final class GameController: NSObject, NSApplicationDelegate {
         window = NSWindow(contentRect: size,
                           styleMask: [.titled, .closable, .miniaturizable],
                           backing: .buffered, defer: false)
-        window.title = "Kraken"
+        window.title = "Khatib"
         window.center()
 
         let content = NSView(frame: size)

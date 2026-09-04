@@ -24,7 +24,7 @@ pub fn run() {
 
         match cmd {
             "uci" => {
-                println!("id name Kraken 1.0");
+                println!("id name Khatib 1.0");
                 println!("id author nesbes");
                 println!("option name Hash type spin default 64 min 1 max 4096");
                 println!("option name Threads type spin default 1 min 1 max 64");
@@ -79,7 +79,7 @@ pub fn run() {
             // networks in circulation, "which net is loaded?" is a real
             // question and guessing from behaviour is unreliable.
             "info" | "version" => {
-                println!("Kraken 1.0");
+                println!("Khatib 1.0");
                 match crate::eval::network() {
                     Some(_) => println!("  network: loaded ({} hidden, {} buckets)",
                                         crate::nnue::HIDDEN, crate::nnue::BUCKETS),

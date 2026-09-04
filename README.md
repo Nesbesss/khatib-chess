@@ -1,4 +1,4 @@
-# Kraken
+# Khatib
 
 A bitboard chess engine in Rust, named for what a deep search does to a position with an NNUE neural-network evaluation, plus a
 web visualizer that shows the search as it happens.
