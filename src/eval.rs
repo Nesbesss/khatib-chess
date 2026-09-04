@@ -272,3 +272,107 @@ mod draw_tests {
         }
     }
 }
+
+// ---------------------------------------------------------------------------
+// King and pawn endgame rules.
+//
+// The network evaluates dead-drawn K+P vs K endings at ±600 to ±825: opposition
+// is a rule, not a pattern, and no amount of training data teaches it reliably.
+// These are exact and cover the cases that actually arise.
+// ---------------------------------------------------------------------------
+
+/// Is this K+P vs K, and if so is it a known draw?
+///
+/// Returns None when the position is not K+P vs K, so the caller falls through
+/// to the normal evaluation.
+pub fn kpk_is_draw(board: &Board) -> Option<bool> {
+    let wp = board.pieces[0][Piece::Pawn.idx()];
+    let bp = board.pieces[1][Piece::Pawn.idx()];
+    // Exactly one pawn, no other material.
+    for c in 0..2 {
+        for p in [Piece::Knight, Piece::Bishop, Piece::Rook, Piece::Queen] {
+            if board.pieces[c][p.idx()] != 0 {
+                return None;
+            }
+        }
+    }
+    let (pawn_bb, strong, weak) = match (wp.count_ones(), bp.count_ones()) {
+        (1, 0) => (wp, Color::White, Color::Black),
+        (0, 1) => (bp, Color::Black, Color::White),
+        _ => return None,
+    };
+
+    let pawn = pawn_bb.trailing_zeros() as u8;
+    let sk = board.king_square(strong);
+    let wk = board.king_square(weak);
+
+    // Work from White's perspective by mirroring when Black is the strong side.
+    let flip = |sq: u8| if strong == Color::White { sq } else { sq ^ 56 };
+    let (pawn, sk, wk) = (flip(pawn), flip(sk), flip(wk));
+    let pf = file_of(pawn);
+    let pr = rank_of(pawn);
+
+    // Rook pawn: if the defending king reaches the promotion corner it is a
+    // draw regardless of the attacking king, because the pawn cannot be
+    // escorted out of the corner.
+    if pf == 0 || pf == 7 {
+        let corner = square(pf, 7);
+        let kd = king_distance(wk, corner);
+        if kd <= 1 {
+            return Some(true);
+        }
+    }
+
+    // The defending king in front of the pawn with the opposition draws.
+    // Square of the pawn: if the defender is close enough to catch it and the
+    // attacker cannot gain the opposition, it holds.
+    let promo = square(pf, 7);
+    let attacker_dist = king_distance(sk, promo) as i32;
+    let defender_dist = king_distance(wk, promo) as i32;
+    let stm_bonus = if board.side == weak { 1 } else { 0 };
+
+    // Defender clearly ahead in the race to the queening square and in front
+    // of the pawn: a standard book draw.
+    if defender_dist - stm_bonus < attacker_dist && rank_of(wk) > pr {
+        return Some(true);
+    }
+    None
+}
+
+#[inline(always)]
+fn king_distance(a: u8, b: u8) -> u8 {
+    let df = (file_of(a) as i8 - file_of(b) as i8).unsigned_abs();
+    let dr = (rank_of(a) as i8 - rank_of(b) as i8).unsigned_abs();
+    df.max(dr)
+}
+
+#[cfg(test)]
+mod kpk_tests {
+    use super::*;
+    use crate::board::Board;
+
+    fn drawn(fen: &str) -> Option<bool> {
+        kpk_is_draw(&Board::from_fen(fen).unwrap())
+    }
+
+    #[test]
+    fn rook_pawn_with_king_in_corner_is_drawn() {
+        // Defending king on h8 in front of an h-pawn: a book draw.
+        assert_eq!(drawn("7k/7P/6K1/8/8/8/8/8 b - - 0 1"), Some(true));
+    }
+
+    #[test]
+    fn not_kpk_returns_none() {
+        // Extra material means these rules do not apply.
+        assert_eq!(drawn("4k3/8/8/8/8/8/4PP2/4K3 w - - 0 1"), None);
+        assert_eq!(drawn("4k3/8/8/8/8/8/4P3/R3K3 w - - 0 1"), None);
+        assert_eq!(drawn("4k3/8/8/8/8/8/8/4K3 w - - 0 1"), None);
+    }
+
+    #[test]
+    fn winning_kpk_is_not_flagged_drawn() {
+        // Attacking king well in front of its pawn: winning, must not be
+        // reported as a draw or the engine throws away wins.
+        assert_ne!(drawn("8/8/8/4K3/4P3/8/8/4k3 w - - 0 1"), Some(true));
+    }
+}

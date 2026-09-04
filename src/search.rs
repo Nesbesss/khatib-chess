@@ -191,6 +191,10 @@ impl Searcher {
     fn eval(&self, board: &Board) -> Score {
         // Applies to both evaluations: no material can force mate.
         if crate::eval::is_insufficient_material(board) { return crate::eval::DRAW; }
+        // K+P vs K is solved theory; the network evaluates book draws at
+        // several hundred centipawns because opposition is a rule, not a
+        // pattern it can learn from position data.
+        if crate::eval::kpk_is_draw(board) == Some(true) { return crate::eval::DRAW; }
         match (self.net(), &self.acc) {
             (Some(net), Some(stack)) =>
                 crate::nnue::evaluate(net, stack.top(), board.side),
