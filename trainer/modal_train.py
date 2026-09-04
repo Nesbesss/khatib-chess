@@ -55,6 +55,24 @@ def upload_chunk(offset: int, data: bytes, first: bool):
     return offset + len(data)
 
 
+@app.function(image=image, volumes={"/data": vol}, timeout=60 * 10)
+def verify_upload() -> tuple:
+    """Bytes and lines actually present in the volume.
+
+    An interrupted upload once left a truncated file and training silently ran
+    on 0.7% of the data, so the size is checked before any GPU time is spent.
+    """
+    import os
+    path = "/data/train.txt"
+    if not os.path.exists(path):
+        return (0, 0)
+    n = 0
+    with open(path, "rb") as f:
+        for _ in f:
+            n += 1
+    return (os.path.getsize(path), n)
+
+
 @app.local_entrypoint()
 def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
          lr: float = 1e-3, limit: int = 0, skip_upload: bool = False,
