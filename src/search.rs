@@ -138,6 +138,10 @@ pub struct Searcher {
     killers: [[Move; 2]; MAX_PLY],
     // history[color][from][to], incremented on cutoffs.
     history: [[[i32; 64]; 64]; 2],
+    // The move that refuted the opponent's last move, indexed by that move.
+    countermove: Box<[[Move; 64]; 6]>,
+    // Piece and destination played at each ply, for the lookup above.
+    move_stack: [(usize, u8); MAX_PLY],
     // Position hashes along the current line, for repetition detection.
     pub repetitions: Vec<u64>,
     stopped: bool,
@@ -170,6 +174,8 @@ impl Searcher {
             limits: SearchLimits::default(),
             killers: [[Move::NULL; 2]; MAX_PLY],
             history: [[[0; 64]; 64]; 2],
+            countermove: Box::new([[Move::NULL; 64]; 6]),
+            move_stack: [(0, 64); MAX_PLY],
             repetitions: Vec::with_capacity(1024),
             stopped: false,
             capture_tree: false,
@@ -479,6 +485,9 @@ impl Searcher {
             } else { None };
             let nodes_before = self.nodes;
 
+            if let Some((_, pc)) = board.piece_at(m.from()) {
+                self.move_stack[ply] = (pc.idx(), m.to());
+            }
             self.acc_push(board, m);
             let saved_cap = self.last_capture_sq;
             self.last_capture_sq = if m.is_capture() { m.to() } else { 64 };
@@ -556,6 +565,10 @@ impl Searcher {
                             for &q in &searched_quiets {
                                 let h = &mut self.history[c][q.from() as usize][q.to() as usize];
                                 *h = (*h - bonus).max(-16384);
+                            }
+                            if ply > 0 {
+                                let (pp, pt) = self.move_stack[ply - 1];
+                                if pt < 64 { self.countermove[pp][pt as usize] = m; }
                             }
                         }
                         break;
@@ -687,6 +700,11 @@ impl Searcher {
     }
 
     fn order_moves(&self, board: &Board, list: &mut MoveList, tt_move: Move, ply: usize) {
+        // The move that refuted the opponent's previous move is a strong
+        // candidate again here.
+        let (pp, pt) = if ply > 0 { self.move_stack[ply - 1] } else { (0, 64) };
+        let counter = if pt < 64 { self.countermove[pp][pt as usize] }
+                      else { Move::NULL };
         let mut scores = [0i32; MAX_MOVES];
         let c = board.side.idx();
         for i in 0..list.len {
@@ -704,6 +722,8 @@ impl Searcher {
                 700_000
             } else if m == self.killers[ply][1] {
                 690_000
+            } else if m == counter {
+                680_000
             } else {
                 self.history[c][m.from() as usize][m.to() as usize]
             };
