@@ -138,6 +138,22 @@ fixed-point arithmetic has not drifted.
   defending king holding the opposition evaluates the same as a winning one.
   Only 1.26% of self-play positions have ≤5 pieces, so this is low priority.
 
+### Where the next gain is
+
+Learning curves, comparing 11.2M against 24.3M training positions:
+
+| | val loss @40 | train/val gap | slope at the end |
+|---|---|---|---|
+| 11.2M positions | 0.0334 | +0.0150 | plateaued |
+| 24.3M positions | 0.0291 | +0.0089 | plateaued |
+
+Doubling the data improved validation loss and nearly halved the overfitting
+gap, so the extra positions were used rather than memorised. But **both runs
+plateau**, and no hyperparameter change moved the needle either — which points
+at the network architecture, not data volume or optimisation, as the next
+binding constraint. A wider layer or more feature buckets is the change most
+likely to produce another step.
+
 ### Comparing candidates
 
 Rank two networks by playing them **against each other**, not by comparing
