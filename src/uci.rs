@@ -75,6 +75,19 @@ pub fn run() {
             // Non-standard helpers.
             "d" | "print" => println!("{}\n{}", render(&board), board.to_fen()),
             "eval" => println!("{}", crate::eval::evaluate(&board)),
+            // Non-standard: report what this build actually is. With several
+            // networks in circulation, "which net is loaded?" is a real
+            // question and guessing from behaviour is unreliable.
+            "info" | "version" => {
+                println!("Kraken 1.0");
+                match crate::eval::network() {
+                    Some(_) => println!("  network: loaded ({} hidden, {} buckets)",
+                                        crate::nnue::HIDDEN, crate::nnue::BUCKETS),
+                    None => println!("  network: none (handcrafted evaluation)"),
+                }
+                println!("  book: {} positions", crate::book::book().len());
+                println!("  threads: {}", searcher.threads);
+            }
             // Non-standard: list legal moves, so a GUI does not need its own
             // rules implementation.
             "legal" => {
