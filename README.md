@@ -142,6 +142,19 @@ promotion and castling edge cases. The NNUE tests verify that incremental
 accumulator updates are exactly equal to a full refresh, and that the
 fixed-point arithmetic has not drifted.
 
+### Correctness fixes that are not Elo
+
+The network evaluated dead-drawn king-and-pawn endings at +600 to +825 — five of
+seven test positions disagreed with Stockfish about whether the position was even
+a draw. Opposition is a rule, not a pattern, so exact rules now handle K+P vs K
+before the network is consulted, and all five now read 0.
+
+**This is very unlikely to be worth measurable Elo.** K+P vs K arises in 0.083%
+of positions (331 of 400,000 sampled), so the effect is far below what a few
+hundred games can resolve. It is in because it is *right*, not because it is
+worth rating points — and it is listed here rather than in the results table for
+that reason.
+
 ### Known weaknesses
 
 - **No endgame tablebases.** The network misjudges theoretically drawn
