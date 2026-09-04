@@ -12,12 +12,21 @@ use std::time::Duration;
 
 const INDEX_HTML: &str = include_str!("../web/index.html");
 
-pub fn run(port: u16) {
-    let listener = match TcpListener::bind(("127.0.0.1", port)) {
+pub fn run(port: u16) { run_on(port, false) }
+
+/// `public` binds every interface so other devices on the same network can
+/// connect. Off by default: this server has no authentication.
+pub fn run_on(port: u16, public: bool) {
+    let host = if public { "0.0.0.0" } else { "127.0.0.1" };
+    let listener = match TcpListener::bind((host, port)) {
         Ok(l) => l,
-        Err(e) => { eprintln!("cannot bind port {}: {}", port, e); return; }
+        Err(e) => { eprintln!("cannot bind {}:{}: {}", host, port, e); return; }
     };
-    println!("visualizer: http://127.0.0.1:{}", port);
+    if public {
+        println!("visualizer: http://<this-machine-ip>:{} (open to the network)", port);
+    } else {
+        println!("visualizer: http://127.0.0.1:{}", port);
+    }
     for stream in listener.incoming() {
         match stream {
             // One thread per connection: SSE streams are long-lived, so they

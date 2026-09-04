@@ -82,7 +82,9 @@ fn main() {
         }
         Some("serve") | Some("web") => {
             let port = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(8080);
-            server::run(port);
+            // `--public` lets other devices on the same network connect.
+            let public = args.iter().any(|a| a == "--public");
+            server::run_on(port, public);
         }
         // Default to UCI so GUIs can launch the binary with no arguments.
         _ => uci::run(),

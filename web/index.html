@@ -327,6 +327,15 @@ async function applyMove(mv) {
   lastPV = [];
   renderHistory();
   await refresh();
+
+  // In auto-reply mode the engine answers on its own, so the page behaves
+  // like an ordinary chess app rather than a analysis tool.
+  if ($('auto').checked && !busy) {
+    const j = await (await fetch('/moves?fen=' + encodeURIComponent(fen))).json();
+    if ((j.moves || []).length && j.status === 'playing') {
+      setTimeout(() => analyze(true), 150);
+    }
+  }
 }
 
 function renderHistory() {
