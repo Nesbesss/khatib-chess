@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Khatib</title>
+<meta name="description" content="A chess engine written from scratch in Rust, with a neural evaluation trained on 36 million positions.">
+<link rel="icon" href="/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --bg:#0a0b09; --panel:#111310; --edge:#1e211c;
+    --ink:#e9ebe6; --dim:#969a8f; --faint:#666a60;
+    --accent:#7fc26a; --revert:#c9705a; --rule:#1e211c;
+    --display:"Space Grotesk",-apple-system,sans-serif;
+    --body:Inter,-apple-system,BlinkMacSystemFont,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  }
+  * { box-sizing:border-box; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:var(--body); font-size:15.5px; line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:760px; margin:0 auto; padding:0 24px 100px; }
+
+  /* hero */
+  header { padding:72px 0 46px; }
+  .mark { display:flex; align-items:center; gap:18px; margin-bottom:26px; }
+  .mark img { width:64px; height:64px; }
+  .mark h1 { font-family:var(--display); font-size:42px; font-weight:700;
+             margin:0; letter-spacing:-.03em; }
+  .mark .ver { font-family:var(--mono); font-size:12px; color:var(--faint);
+               border:1px solid var(--edge); padding:3px 8px; border-radius:4px;
+               align-self:center; }
+  .lede { font-size:19px; line-height:1.5; color:var(--ink); margin:0 0 14px;
+          max-width:34ch; font-family:var(--display); font-weight:500;
+          letter-spacing:-.01em; }
+  .sub { color:var(--dim); margin:0; max-width:62ch; }
+  .cta { display:flex; gap:10px; margin-top:28px; flex-wrap:wrap; }
+  .cta a {
+    display:inline-block; padding:9px 16px; border-radius:6px; font-size:14px;
+    text-decoration:none; border:1px solid var(--edge); color:var(--ink);
+  }
+  .cta a.primary { background:var(--accent); color:#0a1207; border-color:var(--accent);
+                   font-weight:600; }
+  .cta a:hover { border-color:var(--dim); }
+  .cta a.primary:hover { filter:brightness(1.07); }
+
+  /* figures */
+  .figs { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr));
+          gap:1px; background:var(--edge); border:1px solid var(--edge);
+          border-radius:8px; overflow:hidden; margin:44px 0 0; }
+  .fig { background:var(--panel); padding:18px 18px 16px; }
+  .fig b { display:block; font-family:var(--mono); font-size:25px; font-weight:500;
+           letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
+  .fig span { display:block; font-size:12px; color:var(--dim); margin-top:5px; }
+
+  section { padding-top:60px; }
+  h2 { font-family:var(--display); font-size:23px; font-weight:600; margin:0 0 6px;
+       letter-spacing:-.01em; }
+  .note { color:var(--dim); margin:0 0 24px; max-width:62ch; }
+  p { max-width:66ch; }
+
+  table { width:100%; border-collapse:collapse; font-size:14px; margin-top:6px; }
+  th { text-align:left; font-family:var(--mono); font-size:10.5px;
+       letter-spacing:.1em; text-transform:uppercase; color:var(--faint);
+       font-weight:400; padding:0 12px 9px 0; border-bottom:1px solid var(--rule); }
+  td { padding:11px 12px 11px 0; border-bottom:1px solid var(--rule);
+       font-variant-numeric:tabular-nums; vertical-align:top; }
+  td.n { font-family:var(--mono); white-space:nowrap; }
+  .up { color:var(--accent); }
+  .down { color:var(--revert); }
+
+  .bars { display:flex; flex-direction:column; gap:9px; margin-top:8px; }
+  .b { display:grid; grid-template-columns:118px 1fr 62px; gap:12px;
+       align-items:center; }
+  .b .k { font-size:13.5px; }
+  .b .k small { display:block; color:var(--faint); font-size:11px;
+                font-family:var(--mono); }
+  .b .track { height:9px; background:#191c17; border-radius:5px; overflow:hidden; }
+  .b .track i { display:block; height:100%; background:var(--accent);
+                border-radius:5px; }
+  .b .v { font-family:var(--mono); font-size:13px; text-align:right; }
+
+  .dl { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+        gap:22px 30px; margin-top:10px; }
+  .dl dt { font-family:var(--mono); font-size:10.5px; letter-spacing:.1em;
+           text-transform:uppercase; color:var(--faint); margin-bottom:5px; }
+  .dl dd { margin:0; font-size:14.5px; }
+  code { font-family:var(--mono); font-size:.9em; background:#181b16;
+         padding:1.5px 5px; border-radius:3px; color:var(--ink); }
+  pre { background:var(--panel); border:1px solid var(--edge); border-radius:7px;
+        padding:15px 17px; overflow-x:auto; font-family:var(--mono);
+        font-size:12.5px; line-height:1.7; color:var(--dim); }
+  pre b { color:var(--ink); font-weight:400; }
+
+  blockquote { margin:34px 0; padding-left:20px; border-left:3px solid var(--accent);
+               font-family:var(--display); font-size:19px; line-height:1.45;
+               max-width:44ch; font-weight:500; letter-spacing:-.01em; }
+
+  footer { margin-top:76px; padding-top:22px; border-top:1px solid var(--rule);
+           font-size:12.5px; color:var(--faint); display:flex;
+           justify-content:space-between; gap:20px; flex-wrap:wrap; }
+
+  @media (max-width:640px) {
+    .mark h1 { font-size:33px; } .mark img { width:50px; height:50px; }
+    .lede { font-size:17px; } .b { grid-template-columns:92px 1fr 54px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="mark">
+    <img src="/logo.png" alt="">
+    <h1>Khatib</h1>
+    <span class="ver">1.0</span>
+  </div>
+  <p class="lede">A chess engine written from an empty directory, in one sitting.</p>
+  <p class="sub">
+    Bitboard move generation, alpha-beta search, and a neural network evaluation
+    trained on 30 million positions labelled by Stockfish. Rust, no dependencies.
+    Every number below was measured by playing games — on this project the
+    convenient proxies were wrong more often than right.
+  </p>
+  <div class="cta">
+    <a class="primary" href="https://site-puce-nine-lhnzsnkcud.vercel.app">Play Khatib</a>
+    <a href="https://github.com/Nesbesss/khatib-chess">Source on GitHub</a>
+    <a href="#build">How it works</a>
+    <a href="#measure">What the measurements said</a>
+  </div>
+
+  <div class="figs">
+    <div class="fig"><b>~2544</b><span>Measured rating</span></div>
+    <div class="fig"><b>+313</b><span>Elo, v7 over v4</span></div>
+    <div class="fig"><b>117M</b><span>Move gen, nodes/sec</span></div>
+    <div class="fig"><b>30.2M</b><span>Training positions</span></div>
+  </div>
+</header>
+
+<section id="benchmark">
+  <h2>Benchmark</h2>
+  <p class="note">
+    Thirty hard positions, one second each, all three engines on the same
+    machine. Khatib scores 11&ndash;12 across runs, so the gap to Stockfish is
+    small but real.
+  </p>
+  <img src="img/benchmark.png" alt="Stockfish 14/30, Khatib 12/30, Leela 10/30"
+       style="width:100%;border-radius:10px;margin:18px 0">
+  <p class="note">
+    Each network was kept only after beating the previous one in real games.
+  </p>
+  <img src="img/progress.png" alt="Elo gained by each network version"
+       style="width:100%;border-radius:10px;margin:18px 0">
+</section>
+
+<section id="strength">
+  <h2>Strength</h2>
+  <p class="note">
+    Against Stockfish 18 restricted to a target rating, so scoring 50% against a
+    setting is evidence rather than extrapolation.
+  </p>
+  <div class="bars">
+    <div class="b">
+      <div class="k">Stockfish 1800<small>+10 =0 −0</small></div>
+      <div class="track"><i style="width:100%"></i></div>
+      <div class="v">100%</div>
+    </div>
+    <div class="b">
+      <div class="k">Stockfish 2200<small>+6 =0 −4</small></div>
+      <div class="track"><i style="width:60%"></i></div>
+      <div class="v">60%</div>
+    </div>
+    <div class="b">
+      <div class="k">Stockfish 2400<small>+29 =8 −13</small></div>
+      <div class="track"><i style="width:66%"></i></div>
+      <div class="v">66%</div>
+    </div>
+  </div>
+  <p class="note" style="margin-top:18px">
+    Fifty games at the top rung, ±102 Elo at 95% confidence — a solid estimate,
+    not a precise one.
+  </p>
+</section>
+
+<section id="build">
+  <h2>How it works</h2>
+  <dl class="dl">
+    <div><dt>Move generation</dt>
+      <dd>Magic bitboards, fully legal — pins and checks resolved before a move
+      is emitted, so nothing needs verifying afterwards.</dd></div>
+    <div><dt>Search</dt>
+      <dd>Iterative deepening with aspiration windows, a transposition table,
+      quiescence with static exchange evaluation, null-move pruning and late
+      move reductions.</dd></div>
+    <div><dt>Evaluation</dt>
+      <dd>NNUE, 768×4 king buckets → 1024×2 → 1. Incrementally updated: a move
+      changes two feature columns rather than the whole layer.</dd></div>
+    <div><dt>Threading</dt>
+      <dd>Lazy SMP over a lock-free table. Entries verify as
+      <code>key ⊕ data</code>, so a torn read is discarded rather than trusted.</dd></div>
+    <div><dt>Opening book</dt>
+      <dd>109 positions of mainline theory, answered instantly instead of
+      spending the clock rediscovering them.</dd></div>
+    <div><dt>In the browser</dt>
+      <dd>The whole engine compiles to 90 KB of WebAssembly, so the play site
+      runs it client-side with no server.</dd></div>
+  </dl>
+</section>
+
+<section id="measure">
+  <h2>What the measurements said</h2>
+  <p class="note">
+    Every change was played out in games before it was kept. Three of these
+    reduced the search tree or improved validation loss and still made the
+    engine worse or no better.
+  </p>
+  <table>
+    <thead><tr><th>Change</th><th>Proxy said</th><th>Games said</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Stockfish-labelled training data<br>
+          <span style="color:var(--faint);font-size:12.5px">Replaced our own search scores, which the
+          handcrafted evaluation produced — the network was learning to imitate
+          its own baseline.</span></td>
+        <td class="n">37% disagree</td>
+        <td class="n up">+42 → +196</td>
+      </tr>
+      <tr>
+        <td>Doubling the training data<br>
+          <span style="color:var(--faint);font-size:12.5px">11M to 24M positions, after validation loss
+          had already flattened.</span></td>
+        <td class="n">plateaued</td>
+        <td class="n up">+117</td>
+      </tr>
+      <tr>
+        <td>Search: reduction, futility, extensions</td>
+        <td class="n">fewer nodes</td>
+        <td class="n up">+191</td>
+      </tr>
+      <tr>
+        <td>Countermove &amp; continuation history<br>
+          <span style="color:var(--faint);font-size:12.5px">Standard move-ordering tables. Cut the tree
+          by forty percent.</span></td>
+        <td class="n">−40% nodes</td>
+        <td class="n down">−191</td>
+      </tr>
+      <tr>
+        <td>SEE pruning in the main search</td>
+        <td class="n">fewer nodes</td>
+        <td class="n down">−191</td>
+      </tr>
+      <tr>
+        <td>Logarithmic reduction table</td>
+        <td class="n">fewer nodes</td>
+        <td class="n down">±0</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <blockquote>
+    A smaller search tree and a lower validation loss both look like progress.
+    Neither is.
+  </blockquote>
+</section>
+
+<section id="bugs">
+  <h2>Four bugs the tests missed</h2>
+  <p class="note">
+    The move generator passed all thirty-three standard perft positions,
+    including cases counting 178 and 193 million nodes.
+  </p>
+  <dl class="dl">
+    <div><dt>Capturing a king</dt>
+      <dd>A pawn, knight or slider attacking the enemy king's square generated a
+      capture <em>of the king</em>, removing it from the board — every later
+      lookup then indexed past the attack tables and crashed. No standard perft
+      position lets a piece reach a king square.</dd></div>
+    <div><dt>Identical shards</dt>
+      <dd>Every parallel worker seeded from its own index, so 12 million
+      generated positions deduplicated to 79,699. A later variant made each
+      whole <em>run</em> reproduce the previous one.</dd></div>
+    <div><dt>Silent truncation</dt>
+      <dd>An interrupted upload left a partial file and training ran to
+      completion on 0.7% of the data without complaint.</dd></div>
+    <div><dt>A referee that never called a result</dt>
+      <dd>The match runner scored every game a draw because it never detected
+      checkmate, so an entire class of measurement was noise until it was
+      caught.</dd></div>
+  </dl>
+</section>
+
+<section id="use">
+  <h2>Running it</h2>
+  <pre><b>cargo build --release</b>
+
+<b>./target/release/chess</b>              UCI mode, for any chess GUI
+<b>./target/release/chess serve</b>        board and live search view
+<b>./target/release/chess perft 6</b>      move generator verification
+<b>./target/release/chess match 100</b>    measure a network in games</pre>
+  <p class="note" style="margin-top:18px">
+    Speaks standard UCI, so it drops into any chess interface. 21 unit tests and
+    a perft suite; the deep cases run with <code>cargo test --release -- --ignored</code>.
+  </p>
+</section>
+
+<footer>
+  <span>Rust · NNUE 768×4→1024×2→1 · 36.4M Stockfish-labelled positions</span>
+  <span>Ratings estimated from rating-limited Stockfish, not official</span>
+</footer>
+
+</div>
+</body>
+</html>
