@@ -54,22 +54,34 @@ class UCI:
 
 
 def load_suite(path):
-    """Parse EPD lines into (fen, best-moves, id)."""
+    """Parse EPD into (fen, answers, id, is_uci).
+
+    Two answer formats: `bm` holds SAN (hand-written suites) and `bmuci` holds
+    UCI (suites generated from engine output, where no conversion is needed and
+    nothing can be mis-parsed).
+    """
     tests = []
     with open(path) as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            m = re.search(r"bm ([^;]+);", line)
             i = re.search(r'id "([^"]+)"', line)
-            if not m:
+            tid = i.group(1) if i else "?"
+            u = re.search(r"bmuci ([^;]+);", line)
+            m = re.search(r"bm ([^;]+);", line)
+            if u:
+                fen = line.split(" bmuci ")[0].strip()
+                ans, is_uci = u.group(1).split(), True
+            elif m:
+                fen = line.split(" bm ")[0].strip()
+                ans, is_uci = m.group(1).split(), False
+            else:
                 continue
-            fen = line.split(" bm ")[0].strip()
             # EPD omits the halfmove/fullmove counters; UCI wants them.
             if len(fen.split()) == 4:
                 fen += " 0 1"
-            tests.append((fen, m.group(1).split(), i.group(1) if i else "?"))
+            tests.append((fen, ans, tid, is_uci))
     return tests
 
 
@@ -139,13 +151,14 @@ def run(name, cmd, options, tests, ms, ref):
     eng = UCI(cmd, options)
     solved, total_depth, misses = 0, 0, []
     t0 = time.time()
-    for fen, sans, tid in tests:
+    for fen, answers, tid, is_uci in tests:
         mv, depth = eng.best(fen, ms)
         total_depth += depth
-        if mv and san_matches(mv, sans, fen, ref):
+        hit = (mv in answers) if is_uci else (mv and san_matches(mv, answers, fen, ref))
+        if hit:
             solved += 1
         else:
-            misses.append((tid, "/".join(sans), mv or "-"))
+            misses.append((tid, "/".join(answers), mv or "-"))
     elapsed = time.time() - t0
     eng.quit()
     return {
@@ -177,7 +190,9 @@ def main():
         engines = [(os.path.basename(e), [e], {}) for e in a.engine]
 
     print(f"Suite: {os.path.basename(a.suite)} — {len(tests)} positions, "
-          f"{a.ms} ms each\n")
+          f"{a.ms} ms each")
+    print("(answers verified by deep search; a short budget is what makes "
+          "positions hard)\n")
     results = []
     for name, cmd, opts in engines:
         r = run(name, cmd, opts, tests, a.ms, ref)
