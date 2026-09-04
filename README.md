@@ -158,6 +158,14 @@ getting the *ordering* of candidate moves right. Only games measure that. This
 is the same lesson as the SEE-pruning and LMR reverts, from the opposite
 direction — proxies mislead in both directions, so measure in games.
 
+### Which checkpoint to keep
+
+The trainer's best-validation-loss checkpoint is not necessarily the strongest
+net. On the 24.3M-position run, the final epoch-50 net (best val loss 0.02884)
+measured **−44 Elo** against an epoch-43 checkpoint — the last seven epochs
+improved the loss and did not improve play. Use `--checkpoint-every` to export
+intermediate nets and rank them by games.
+
 ### Comparing candidates
 
 Rank two networks by playing them **against each other**, not by comparing
