@@ -1,0 +1,14 @@
+{
+  "headers": [
+    {
+      "source": "/(.*)\\.wasm",
+      "headers": [{ "key": "content-type", "value": "application/wasm" }]
+    },
+    {
+      "source": "/net.nnue",
+      "headers": [
+        { "key": "cache-control", "value": "public, max-age=31536000, immutable" }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+[package]
+name = "kraken-wasm"
+version = "1.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+wasm-bindgen = "0.2"
+
+[profile.release]
+opt-level = 3
+lto = true
+# Smaller binary matters more than the last few percent of speed when the
+# whole thing has to be downloaded by every visitor.
+codegen-units = 1
+panic = "abort"

@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Kraken</title>
+<style>
+  :root {
+    --bg:#0e0f0d; --panel:#161814; --edge:#23261f; --ink:#e8e9e2;
+    --dim:#8a8d80; --faint:#5f6357;
+    --light:#d8d5bd; --dark:#5d7a3e; --accent:#7fc26a; --warn:#c9705a;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body {
+    margin:0; background:var(--bg); color:var(--ink);
+    font:15px/1.55 ui-sans-serif,-apple-system,"SF Pro Text",system-ui,sans-serif;
+    display:flex; flex-direction:column; align-items:center; min-height:100vh;
+  }
+  header {
+    width:100%; max-width:560px; padding:22px 18px 12px;
+    display:flex; align-items:baseline; gap:12px;
+  }
+  h1 { margin:0; font-size:19px; font-weight:600; letter-spacing:-.01em; }
+  header .v { font-size:11px; color:var(--faint); font-family:ui-monospace,monospace; }
+  header .sp { margin-left:auto; font-size:12px; color:var(--dim); }
+
+  main { width:100%; max-width:560px; padding:0 18px 40px; }
+
+  /* board */
+  #board {
+    display:grid; grid-template-columns:repeat(8,1fr);
+    aspect-ratio:1; width:100%; border-radius:4px; overflow:hidden;
+    touch-action:manipulation; user-select:none;
+  }
+  .sq { position:relative; display:flex; align-items:center; justify-content:center;
+        font-size:min(7.6vw,42px); line-height:1; cursor:pointer; }
+  .sq.l { background:var(--light); } .sq.d { background:var(--dark); }
+  .sq.w { color:#fff; text-shadow:0 0 1px #000,1px 1px 0 #2a2a2a,-1px -1px 0 #2a2a2a,1px -1px 0 #2a2a2a,-1px 1px 0 #2a2a2a; }
+  .sq.b { color:#181818; }
+  .sq.sel { box-shadow:inset 0 0 0 3px var(--accent); }
+  .sq.from,.sq.to { background-image:linear-gradient(rgba(127,194,106,.28),rgba(127,194,106,.28)); }
+  .sq .dot { position:absolute; width:22%; height:22%; border-radius:50%;
+             background:rgba(0,0,0,.28); pointer-events:none; }
+  .sq.cap .dot { width:88%; height:88%; background:none;
+                 border:4px solid rgba(0,0,0,.22); }
+
+  /* status + controls */
+  .bar { display:flex; align-items:center; gap:10px; margin:14px 0 0; min-height:30px; }
+  #status { font-size:14px; }
+  #status.win { color:var(--accent); font-weight:600; }
+  #status.lose { color:var(--warn); }
+  .bar .right { margin-left:auto; display:flex; gap:8px; }
+  button, select {
+    background:var(--panel); color:var(--ink); border:1px solid var(--edge);
+    padding:7px 12px; border-radius:6px; font:inherit; font-size:13px; cursor:pointer;
+  }
+  button:hover:not(:disabled) { border-color:var(--dim); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.primary { background:var(--accent); color:#0b1008; border-color:var(--accent);
+                   font-weight:600; }
+
+  /* panels */
+  .card { background:var(--panel); border:1px solid var(--edge); border-radius:8px;
+          padding:14px 16px; margin-top:14px; }
+  .card h2 { margin:0 0 10px; font-size:11px; letter-spacing:.09em;
+             text-transform:uppercase; color:var(--faint); font-weight:600; }
+  input[type=text] {
+    background:#101210; color:var(--ink); border:1px solid var(--edge);
+    padding:9px 11px; border-radius:6px; font:inherit; font-size:14px; width:100%;
+  }
+  input[type=text]:focus, button:focus-visible, select:focus-visible {
+    outline:2px solid var(--accent); outline-offset:1px;
+  }
+  .row { display:flex; gap:8px; align-items:center; }
+
+  /* leaderboard */
+  table { width:100%; border-collapse:collapse; font-size:13.5px; }
+  th { text-align:left; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+       color:var(--faint); font-weight:500; padding-bottom:7px; }
+  td { padding:6px 0; border-top:1px solid var(--edge); font-variant-numeric:tabular-nums; }
+  td.rank { width:30px; color:var(--faint); font-family:ui-monospace,monospace; }
+  td.mode { text-align:right; color:var(--dim); font-size:12px; }
+  .empty { color:var(--faint); font-size:13px; padding:8px 0; }
+
+  /* move list: a scoresheet, numbered pairs */
+  .moves {
+    font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:13px;
+    line-height:1.9; max-height:132px; overflow-y:auto;
+    display:flex; flex-wrap:wrap; gap:0 4px;
+  }
+  .moves .n { color:var(--faint); margin-left:7px; }
+  .moves .n:first-child { margin-left:0; }
+  .moves .m { color:var(--ink); }
+  .moves .m.last { color:var(--accent); font-weight:600; }
+  #evalnote { float:right; color:var(--dim); font-weight:400;
+              letter-spacing:0; text-transform:none; font-size:11px;
+              font-family:ui-monospace,monospace; }
+
+  #overlay {
+    position:fixed; inset:0; background:rgba(14,15,13,.93); display:flex;
+    align-items:center; justify-content:center; padding:20px; z-index:10;
+  }
+  #overlay .card { max-width:340px; width:100%; margin:0; }
+  .hide { display:none !important; }
+  .muted { color:var(--dim); font-size:12.5px; margin:8px 0 0; }
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="card">
+    <h2>Choose a name</h2>
+    <input type="text" id="name" placeholder="your name" maxlength="16" autocomplete="off">
+    <p class="muted">Beat Kraken and you go on the board.</p>
+    <div class="row" style="margin-top:12px">
+      <button class="primary" id="start" style="flex:1">Play</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <h1>Kraken</h1>
+  <span class="v">1.0</span>
+  <span class="sp" id="who"></span>
+</header>
+
+<main>
+  <div id="board"></div>
+
+  <div class="bar">
+    <span id="status">Loading engine…</span>
+    <span class="right">
+      <select id="level" title="Difficulty">
+        <option value="1">Level 1</option>
+        <option value="2">Level 2</option>
+        <option value="4" selected>Level 3</option>
+        <option value="6">Level 4</option>
+        <option value="8">Level 5 — full</option>
+      </select>
+      <button id="new">New</button>
+    </span>
+  </div>
+
+  <div class="card" id="movecard">
+    <h2>Moves <span id="evalnote"></span></h2>
+    <div id="moves" class="moves"><span class="empty">No moves yet.</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Leaderboard — players who beat Kraken</h2>
+    <table>
+      <thead><tr><th></th><th>Player</th><th>Wins</th><th class="mode" style="text-align:right">Best level</th></tr></thead>
+      <tbody id="lb"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody>
+    </table>
+  </div>
+</main>
+
+<script type="module">
+import init, { Kraken } from './kraken_wasm.js';
+
+const GLYPH = {p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚'};
+const $ = id => document.getElementById(id);
+
+let engine = null, moves = [], legal = [], sel = null, busy = false;
+let player = localStorage.getItem('kraken.name') || '';
+let recorded = false;
+
+/* ---------- board rendering ---------- */
+function piecesFrom(fen) {
+  const rows = fen.split(' ')[0].split('/');
+  const out = {};
+  rows.forEach((row, ri) => {
+    let f = 0;
+    for (const ch of row) {
+      if (/\d/.test(ch)) f += +ch;
+      else { out['abcdefgh'[f] + (8 - ri)] = ch; f++; }
+    }
+  });
+  return out;
+}
+
+function draw() {
+  const pieces = piecesFrom(engine ? engine.fen() : 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1');
+  const last = moves.length ? moves[moves.length - 1] : null;
+  const targets = sel ? legal.filter(m => m.startsWith(sel)).map(m => m.slice(2,4)) : [];
+  const el = $('board');
+  el.innerHTML = '';
+  for (let r = 8; r >= 1; r--) {
+    for (let f = 0; f < 8; f++) {
+      const name = 'abcdefgh'[f] + r;
+      const d = document.createElement('div');
+      d.className = 'sq ' + ((f + r) % 2 ? 'l' : 'd');
+      const p = pieces[name];
+      if (p) {
+        d.textContent = GLYPH[p.toLowerCase()];
+        d.classList.add(p === p.toUpperCase() ? 'w' : 'b');
+      }
+      if (last && (name === last.slice(0,2) || name === last.slice(2,4)))
+        d.classList.add(name === last.slice(0,2) ? 'from' : 'to');
+      if (name === sel) d.classList.add('sel');
+      if (targets.includes(name)) {
+        if (p) d.classList.add('cap');
+        const dot = document.createElement('div');
+        dot.className = 'dot';
+        d.appendChild(dot);
+      }
+      d.onclick = () => tap(name);
+      el.appendChild(d);
+    }
+  }
+}
+
+function renderMoves() {
+  const box = $('moves');
+  const san = engine ? engine.san_history().split(' ').filter(Boolean) : [];
+  if (!san.length) {
+    box.innerHTML = '<span class="empty">No moves yet.</span>';
+    $('evalnote').textContent = '';
+    return;
+  }
+  let html = '';
+  san.forEach((m, i) => {
+    if (i % 2 === 0) html += `<span class="n">${i / 2 + 1}.</span>`;
+    const last = i === san.length - 1 ? ' last' : '';
+    html += `<span class="m${last}">${m}</span>`;
+  });
+  box.innerHTML = html;
+  box.scrollTop = box.scrollHeight;
+
+  // Evaluation from the player's side, so + always means the player is better.
+  const cp = engine.evaluate();
+  const v = (cp / 100).toFixed(1);
+  $('evalnote').textContent = cp > 40 ? `you +${v}`
+                            : cp < -40 ? `Kraken +${(-cp / 100).toFixed(1)}`
+                            : 'level';
+}
+
+function tap(name) {
+  if (busy || !engine) return;
+  if (sel) {
+    const cands = legal.filter(m => m.startsWith(sel + name));
+    if (cands.length) {
+      play(cands.find(m => m.length === 5 && m.endsWith('q')) || cands[0]);
+      return;
+    }
+    sel = legal.some(m => m.startsWith(name)) ? (name === sel ? null : name) : null;
+  } else if (legal.some(m => m.startsWith(name))) {
+    sel = name;
+  }
+  draw();
+}
+
+/* ---------- game flow ---------- */
+function sync() {
+  engine.set_position(moves.join(' '));
+  legal = engine.legal_moves().split(' ').filter(Boolean);
+}
+
+async function play(mv) {
+  moves.push(mv);
+  sel = null;
+  busy = true;
+  sync(); draw(); renderMoves();
+  if (over()) { busy = false; return; }
+
+  $('status').textContent = 'Kraken is thinking…';
+  // Yield so the board repaints before the search blocks the thread.
+  await new Promise(r => setTimeout(r, 30));
+
+  const depth = +$('level').value;
+  const reply = engine.best_move(depth, true);
+  if (reply) { moves.push(reply); sync(); }
+  draw(); renderMoves();
+  busy = false;
+  over() || setStatus('Your move');
+}
+
+function over() {
+  const st = engine.status();
+  if (st === 'playing') return false;
+  if (st === 'white-wins') {
+    setStatus('You win', 'win');
+    recordWin();
+  } else if (st === 'black-wins') {
+    setStatus('Kraken wins', 'lose');
+  } else {
+    setStatus('Draw');
+  }
+  return true;
+}
+
+function setStatus(text, cls) {
+  const s = $('status');
+  s.textContent = text;
+  s.className = cls || '';
+}
+
+async function recordWin() {
+  if (recorded || !player) return;
+  recorded = true;
+  const level = $('level').selectedOptions[0].textContent;
+  try {
+    await fetch('/api/win', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: player, level, depth: +$('level').value }),
+    });
+    loadBoard();
+  } catch (e) { /* the game still counts locally even if the board is down */ }
+}
+
+function newGame() {
+  moves = []; sel = null; recorded = false;
+  sync(); draw(); renderMoves();
+  setStatus('Your move');
+}
+
+/* ---------- leaderboard ---------- */
+async function loadBoard() {
+  const tb = $('lb');
+  try {
+    const r = await fetch('/api/leaderboard');
+    const rows = await r.json();
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="4" class="empty">Nobody has beaten Kraken yet.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map((x, i) =>
+      `<tr><td class="rank">${i + 1}</td><td>${esc(x.name)}</td>` +
+      `<td>${x.wins}</td><td class="mode">${esc(x.best_level || '')}</td></tr>`).join('');
+  } catch (e) {
+    tb.innerHTML = '<tr><td colspan="4" class="empty">Leaderboard unavailable.</td></tr>';
+  }
+}
+
+const esc = s => String(s).replace(/[<>&"]/g, c =>
+  ({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+
+/* ---------- boot ---------- */
+$('start').onclick = () => {
+  const v = $('name').value.trim().slice(0, 16);
+  if (!v) { $('name').focus(); return; }
+  player = v;
+  localStorage.setItem('kraken.name', v);
+  $('who').textContent = v;
+  $('overlay').classList.add('hide');
+};
+$('name').addEventListener('keydown', e => { if (e.key === 'Enter') $('start').click(); });
+$('new').onclick = newGame;
+$('level').onchange = newGame;
+
+if (player) {
+  $('name').value = player;
+  $('who').textContent = player;
+  $('overlay').classList.add('hide');
+}
+
+draw();
+loadBoard();
+
+(async () => {
+  await init();
+  engine = new Kraken();
+  setStatus('Loading network…');
+  const buf = await (await fetch('./net.nnue')).arrayBuffer();
+  engine.load_network(new Uint8Array(buf));
+  newGame();
+})();
+</script>
+</body>
+</html>

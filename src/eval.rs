@@ -142,6 +142,12 @@ pub fn relative_sq(c: Color, sq: u8) -> usize {
 static NET: std::sync::OnceLock<Option<Box<crate::nnue::Network>>> =
     std::sync::OnceLock::new();
 
+/// Load a network from bytes already in memory (the browser fetches the file).
+pub fn load_network_bytes(bytes: &[u8]) -> Result<(), String> {
+    let net = crate::nnue::load_bytes(bytes).map_err(|e| e.to_string())?;
+    NET.set(Some(net)).map_err(|_| "network already loaded".to_string())
+}
+
 pub fn load_network(path: &str) -> Result<(), String> {
     let net = crate::nnue::load(path).map_err(|e| e.to_string())?;
     NET.set(Some(net)).map_err(|_| "network already loaded".to_string())

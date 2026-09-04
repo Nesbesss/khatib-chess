@@ -273,6 +273,12 @@ pub fn evaluate(net: &Network, acc: &Accumulator, side: Color) -> Score {
 //   | out_weight [HIDDEN*2] | out_bias [1]
 pub fn load(path: &str) -> std::io::Result<Box<Network>> {
     let bytes = std::fs::read(path)?;
+    load_bytes(&bytes)
+}
+
+/// Parse a network from bytes already in memory. The browser build has no
+/// filesystem, so it fetches the file and hands the bytes here.
+pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
     let expected = (FT_SIZE * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2;
     if bytes.len() != expected {
         return Err(std::io::Error::new(

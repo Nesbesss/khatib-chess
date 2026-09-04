@@ -4,9 +4,7 @@ use crate::board::{Board, Undo};
 use crate::eval::*;
 use crate::movegen::*;
 use crate::types::*;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::sync::atomic::{AtomicU64, Ordering};
 
 pub const MAX_PLY: usize = 128;
 
@@ -110,10 +108,8 @@ impl Tt {
 pub struct SearchLimits {
     pub depth: u32,
     // Hard limit: abort mid-search once exceeded.
-    pub movetime: Option<Duration>,
     // Soft limit: don't begin a new iteration past this. Lets a promising
     // depth finish instead of being cut off with a half-searched root.
-    pub soft_time: Option<Duration>,
     pub nodes: Option<u64>,
 }
 
@@ -121,18 +117,14 @@ impl Default for SearchLimits {
     fn default() -> Self {
         SearchLimits {
             depth: MAX_PLY as u32,
-            movetime: None,
-            soft_time: None,
             nodes: None,
         }
     }
 }
 
 pub struct Searcher {
-    pub tt: Arc<Tt>,
+    pub tt: Tt,
     pub nodes: u64,
-    pub stop: Arc<AtomicBool>,
-    start: Instant,
     limits: SearchLimits,
     // Quiet moves that caused a beta cutoff, indexed by ply.
     killers: [[Move; 2]; MAX_PLY],
@@ -141,9 +133,6 @@ pub struct Searcher {
     // Position hashes along the current line, for repetition detection.
     pub repetitions: Vec<u64>,
     stopped: bool,
-    // Visualizer: root-level search tree, captured only when requested.
-    pub capture_tree: bool,
-    pub tree: Vec<TreeNode>,
     // Incremental NNUE accumulator, kept in lockstep with make/unmake.
     pub acc: Option<crate::nnue::AccStack>,
     // Overrides the globally-loaded net; lets a match pit two evals in one
@@ -158,22 +147,18 @@ pub struct Searcher {
 
 impl Searcher {
     pub fn new(tt_mb: usize) -> Searcher {
-        Searcher::with_tt(Arc::new(Tt::new(tt_mb)))
+        Searcher::with_tt(Tt::new(tt_mb))
     }
 
-    pub fn with_tt(tt: Arc<Tt>) -> Searcher {
+    pub fn with_tt(tt: Tt) -> Searcher {
         Searcher {
             tt,
             nodes: 0,
-            stop: Arc::new(AtomicBool::new(false)),
-            start: Instant::now(),
             limits: SearchLimits::default(),
             killers: [[Move::NULL; 2]; MAX_PLY],
             history: [[[0; 64]; 64]; 2],
             repetitions: Vec::with_capacity(1024),
             stopped: false,
-            capture_tree: false,
-            tree: Vec::new(),
             acc: None,
             forced_net: None,
             last_capture_sq: 64,
@@ -222,15 +207,12 @@ impl Searcher {
         if let Some(stack) = self.acc.as_mut() { stack.pop(); }
     }
 
+    // WASM has no wall clock (Instant panics) and no threads, so the search
+    // budget is a node count.
     #[inline(always)]
     fn should_stop(&mut self) -> bool {
         if self.stopped { return true; }
-        // Checking the clock every node is a measurable cost; sample instead.
         if self.nodes & 2047 == 0 {
-            if self.stop.load(Ordering::Relaxed) { self.stopped = true; return true; }
-            if let Some(mt) = self.limits.movetime {
-                if self.start.elapsed() >= mt { self.stopped = true; return true; }
-            }
             if let Some(n) = self.limits.nodes {
                 if self.nodes >= n { self.stopped = true; return true; }
             }
@@ -238,84 +220,29 @@ impl Searcher {
         false
     }
 
-    // Returns (best move, score). Prints UCI info lines as it deepens.
-    pub fn search(&mut self, board: &mut Board, limits: SearchLimits, verbose: bool)
-        -> (Move, Score)
-    {
+    /// Search to a fixed depth. Depth-limited because WASM has no clock.
+    pub fn search(&mut self, board: &mut Board, depth: u32) -> (Move, Score) {
         self.nodes = 0;
-        self.start = Instant::now();
-        self.limits = limits;
         self.stopped = false;
-        self.stop.store(false, Ordering::Relaxed);
+        // A node ceiling stops a pathological position hanging the browser tab.
+        self.limits = SearchLimits { depth, nodes: Some(3_000_000) };
         self.killers = [[Move::NULL; 2]; MAX_PLY];
         self.history = [[[0; 64]; 64]; 2];
-        if let Some(net) = self.forced_net.or_else(crate::eval::network) {
+        if let Some(net) = crate::eval::network() {
             match self.acc.as_mut() {
                 Some(stack) => stack.reset(net, board),
                 None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
             }
         }
-
         let mut best = Move::NULL;
         let mut best_score = 0;
-        let mut pv = Vec::new();
-        let mut prev_best = Move::NULL;
-
-        for depth in 1..=self.limits.depth {
-            // Helper threads skip alternate shallow iterations, so they reach
-            // deep nodes on a different schedule than the main thread.
-            if self.skip_depth > 0 && depth > 2 && (depth as usize % 2) == self.skip_depth {
-                continue;
-            }
-            // Aspiration windows: the score rarely moves far between
-            // iterations, so search a narrow window around the last one and
-            // widen only on a fail. Cheaper than a full-width search.
-            let score = self.aspiration(board, depth as i32, best_score);
-
-            // A stopped search has a corrupt partial result; keep the last
-            // completed depth's move instead.
-            if self.stopped && depth > 1 { break; }
-
+        for d in 1..=depth {
+            let score = self.aspiration(board, d as i32, best_score);
+            if self.stopped && d > 1 { break; }
             best_score = score;
-            pv = self.extract_pv(board, depth as usize);
-            if let Some(&m) = pv.first() { best = m; }
-
-            if verbose {
-                let ms = self.start.elapsed().as_millis().max(1);
-                let nps = (self.nodes as u128 * 1000 / ms) as u64;
-                let score_str = if score.abs() > MATE_IN_MAX {
-                    // Convert to moves-to-mate, signed by who's delivering it.
-                    let plies = MATE - score.abs();
-                    let mate_in = (plies + 1) / 2;
-                    format!("mate {}", if score > 0 { mate_in } else { -mate_in })
-                } else {
-                    format!("cp {}", score)
-                };
-                let pv_str: Vec<String> = pv.iter().map(|m| m.to_uci()).collect();
-                println!("info depth {} score {} nodes {} nps {} time {} pv {}",
-                         depth, score_str, self.nodes, nps, ms, pv_str.join(" "));
-            }
-
-            // Found a forced mate; deeper search can't improve on it.
+            if let Some(&m) = self.extract_pv(board, d as usize).first() { best = m; }
             if score.abs() > MATE_IN_MAX { break; }
-
-            // Don't start a depth we almost certainly can't finish. A stable
-            // best move lets us stop earlier; an unstable one buys more time.
-            // With an explicit movetime the caller wants that time used;
-            // only a clock-derived soft limit should stop us early.
-            let soft = self.limits.soft_time.or_else(||
-                self.limits.movetime.map(|m| m.mul_f32(0.85)));
-            if let Some(soft) = soft {
-                let stable = best == prev_best;
-                prev_best = best;
-                let factor = if stable { 1.0 } else { 1.35 };
-                if self.start.elapsed().as_secs_f32() > soft.as_secs_f32() * factor {
-                    break;
-                }
-            }
         }
-
-        // Safety net: never return a null move from a legal position.
         if best == Move::NULL {
             let list = generate(board, GenMode::All);
             if list.len > 0 { best = list[0]; }
@@ -442,7 +369,6 @@ impl Searcher {
         self.order_moves(board, &mut list, tt_move, ply);
 
         // Each entry into the root starts a fresh tree for this depth.
-        if self.capture_tree && ply == 0 { self.tree.clear(); }
 
         let mut best_score = -MATE;
         let mut best_move = Move::NULL;
@@ -467,14 +393,6 @@ impl Searcher {
             }
 
             // Tree capture: record this root move and how much it cost.
-            let tree_idx = if self.capture_tree && ply == 0 {
-                self.tree.push(TreeNode {
-                    mv: m, score: -MATE, depth, parent: usize::MAX,
-                    children: Vec::new(), nodes: 0, pruned: false, best: false,
-                });
-                Some(self.tree.len() - 1)
-            } else { None };
-            let nodes_before = self.nodes;
 
             self.acc_push(board, m);
             let saved_cap = self.last_capture_sq;
@@ -514,22 +432,6 @@ impl Searcher {
             self.repetitions.pop();
             self.last_capture_sq = saved_cap;
 
-            if let Some(ti) = tree_idx {
-                self.tree[ti].score = score;
-                self.tree[ti].nodes = self.nodes - nodes_before;
-                // A move that never beat alpha was effectively refuted.
-                self.tree[ti].pruned = score <= alpha && i > 0;
-                // Pull this move's best reply from the TT for the second level.
-                let replies = self.child_replies(board, 2);
-                for (rm, rs) in replies {
-                    self.tree.push(TreeNode {
-                        mv: rm, score: rs, depth: depth - 1, parent: ti,
-                        children: Vec::new(), nodes: 0, pruned: false, best: false,
-                    });
-                    let ci = self.tree.len() - 1;
-                    self.tree[ti].children.push(ci);
-                }
-            }
 
             board.unmake_move(m, undo);
             self.acc_pop();
@@ -560,13 +462,6 @@ impl Searcher {
                 }
             }
             if is_quiet { searched_quiets.push(m); }
-        }
-
-        if self.capture_tree && ply == 0 {
-            if let Some(n) = self.tree.iter_mut().find(|n| n.mv == best_move
-                                                       && n.parent == usize::MAX) {
-                n.best = true;
-            }
         }
 
         let bound = if best_score >= beta { Bound::Lower }
@@ -800,244 +695,3 @@ fn from_tt_score(score: Score, ply: usize) -> Score {
     else { score }
 }
 
-// ---------------------------------------------------------------------------
-// Visualizer support: streaming callbacks and search-tree capture.
-// ---------------------------------------------------------------------------
-
-// One node in the captured search tree.
-pub struct TreeNode {
-    pub mv: Move,
-    pub score: Score,
-    pub depth: i32,
-    pub parent: usize,
-    pub children: Vec<usize>,
-    pub nodes: u64,
-    pub pruned: bool,
-    pub best: bool,
-}
-
-impl Searcher {
-    // Same as search(), but each completed depth is handed to `on_info` as a
-    // JSON object instead of printed. Used by the visualizer's SSE stream.
-    pub fn search_with_callback<F: FnMut(String)>(
-        &mut self, board: &mut Board, limits: SearchLimits, mut on_info: F,
-    ) -> (Move, Score) {
-        self.nodes = 0;
-        self.start = Instant::now();
-        self.limits = limits;
-        self.stopped = false;
-        self.stop.store(false, Ordering::Relaxed);
-        self.killers = [[Move::NULL; 2]; MAX_PLY];
-        self.history = [[[0; 64]; 64]; 2];
-        if let Some(net) = self.forced_net.or_else(crate::eval::network) {
-            match self.acc.as_mut() {
-                Some(stack) => stack.reset(net, board),
-                None => self.acc = Some(crate::nnue::AccStack::new(net, board)),
-            }
-        }
-
-        let mut best = Move::NULL;
-        let mut best_score = 0;
-
-        for depth in 1..=self.limits.depth {
-            // Capture the root breakdown at this depth for the tree view.
-            self.capture_tree = true;
-            self.tree.clear();
-            let score = self.aspiration(board, depth as i32, best_score);
-            self.capture_tree = false;
-
-            if self.stopped && depth > 1 { break; }
-
-            best_score = score;
-            let pv = self.extract_pv(board, depth as usize);
-            if let Some(&m) = pv.first() { best = m; }
-
-            let ms = self.start.elapsed().as_millis().max(1);
-            let nps = (self.nodes as u128 * 1000 / ms) as u64;
-            let pv_str: Vec<String> = pv.iter().map(|m| format!("\"{}\"", m.to_uci())).collect();
-
-            // Scores along the PV, so the graph can annotate each step.
-            let pv_scores = self.pv_scores(board, &pv);
-            on_info(format!(
-                "{{\"depth\":{},\"score\":{},\"nodes\":{},\"nps\":{},\"time\":{},\
-                  \"pv\":[{}],\"pvScores\":[{}],\"tree\":{}}}",
-                depth, crate::server::score_json(score), self.nodes, nps, ms,
-                pv_str.join(","), pv_scores.join(","), self.tree_json(board)));
-
-            if score.abs() > MATE_IN_MAX { break; }
-            if let Some(mt) = self.limits.movetime {
-                if self.start.elapsed() > mt.mul_f32(0.5) { break; }
-            }
-        }
-
-        if best == Move::NULL {
-            let list = generate(board, GenMode::All);
-            if list.len > 0 { best = list[0]; }
-        }
-        (best, best_score)
-    }
-
-    // Walk the PV, reporting the TT score at each step so the visualizer can
-    // show how the evaluation evolves along the main line.
-    fn pv_scores(&self, board: &mut Board, pv: &[Move]) -> Vec<String> {
-        let mut out = Vec::new();
-        let mut undos = Vec::new();
-        for &m in pv {
-            let list = generate(board, GenMode::All);
-            if !list.as_slice().contains(&m) { break; }
-            undos.push((m, board.make_move(m)));
-            let sc = match self.tt.probe(board.hash) {
-                // TT scores are from the side to move; flip to a consistent
-                // root-relative view so the sequence reads monotonically.
-                Some(e) => {
-                    let s = from_tt_score(e.score as Score, undos.len());
-                    if undos.len() % 2 == 1 { -s } else { s }
-                }
-                None => 0,
-            };
-            out.push(crate::server::score_json(sc));
-        }
-        while let Some((m, u)) = undos.pop() { board.unmake_move(m, u); }
-        out
-    }
-
-    // Serialize the captured root tree. Each root move carries its score, the
-    // subtree size it cost, and its best reply — enough to draw the graph.
-    fn tree_json(&self, board: &mut Board) -> String {
-        let mut out = Vec::new();
-        // Only true root moves; replies nest inside their parent. A move can
-        // be re-searched within a depth, so keep only its last entry.
-        let mut seen: Vec<Move> = Vec::new();
-        let roots: Vec<&TreeNode> = {
-            let mut v: Vec<&TreeNode> = self.tree.iter()
-                .filter(|n| n.parent == usize::MAX).collect();
-            v.reverse();
-            let mut keep = Vec::new();
-            for n in v {
-                if !seen.contains(&n.mv) { seen.push(n.mv); keep.push(n); }
-            }
-            keep
-        };
-        for n in roots {
-            // San-ish label: the UCI move plus the piece that moves it.
-            let piece = board.piece_at(n.mv.from())
-                .map(|(c, p)| p.to_char(c)).unwrap_or('?');
-            out.push(format!(
-                "{{\"move\":\"{}\",\"piece\":\"{}\",\"score\":{},\"nodes\":{},\
-                  \"pruned\":{},\"best\":{},\"replies\":[{}]}}",
-                n.mv.to_uci(), piece, crate::server::score_json(n.score),
-                n.nodes, n.pruned, n.best,
-                n.children.iter().filter_map(|&c| self.tree.get(c)).map(|c| {
-                    format!("{{\"move\":\"{}\",\"score\":{},\"nodes\":{},\"pruned\":{}}}",
-                            c.mv.to_uci(), crate::server::score_json(c.score),
-                            c.nodes, c.pruned)
-                }).collect::<Vec<_>>().join(",")));
-        }
-        format!("[{}]", out.join(","))
-    }
-}
-
-impl Searcher {
-    // Top replies to the current position, read from the TT. Cheap: the
-    // search just visited these, so the entries are warm.
-    fn child_replies(&self, board: &mut Board, max: usize) -> Vec<(Move, Score)> {
-        let mut out = Vec::new();
-        // The TT's stored move for this node is the refutation we care about.
-        let Some(e) = self.tt.probe(board.hash) else { return out };
-        if e.mv == Move::NULL { return out }
-        let list = generate(board, GenMode::All);
-        if !list.as_slice().contains(&e.mv) { return out }
-        out.push((e.mv, -(e.score as Score)));
-        // Add a couple of sibling captures for visual context.
-        for i in 0..list.len {
-            if out.len() >= max { break }
-            let m = list[i];
-            if m != e.mv && m.is_capture() {
-                out.push((m, 0));
-            }
-        }
-        out
-    }
-}
-
-// ---------------------------------------------------------------------------
-// Lazy SMP: run several searchers on the same position, sharing one
-// transposition table. Threads take slightly different paths (staggered
-// starting depths), and whichever finds something useful publishes it to the
-// shared table, so the others benefit. Simple, and it scales well in practice.
-// ---------------------------------------------------------------------------
-
-pub struct ThreadedSearcher {
-    pub tt: Arc<Tt>,
-    pub threads: usize,
-    pub stop: Arc<AtomicBool>,
-    pub repetitions: Vec<u64>,
-}
-
-impl ThreadedSearcher {
-    pub fn new(tt_mb: usize, threads: usize) -> ThreadedSearcher {
-        ThreadedSearcher {
-            tt: Arc::new(Tt::new(tt_mb)),
-            threads: threads.max(1),
-            stop: Arc::new(AtomicBool::new(false)),
-            repetitions: Vec::new(),
-        }
-    }
-
-    pub fn set_threads(&mut self, n: usize) {
-        self.threads = n.max(1);
-    }
-
-    pub fn clear(&mut self) {
-        self.tt.clear();
-        self.repetitions.clear();
-    }
-
-    pub fn search(&mut self, board: &Board, limits: SearchLimits, verbose: bool)
-        -> (Move, Score)
-    {
-        self.stop.store(false, Ordering::Relaxed);
-
-        // One thread reports; the helpers only enrich the shared table.
-        let result = std::thread::scope(|scope| {
-            let mut handles = Vec::new();
-
-            for id in 1..self.threads {
-                let tt = self.tt.clone();
-                let stop = self.stop.clone();
-                let reps = self.repetitions.clone();
-                let mut b = board.clone();
-                let lim = SearchLimits {
-                    depth: limits.depth,
-                    movetime: limits.movetime,
-                    soft_time: limits.soft_time,
-                    nodes: None, // only the main thread enforces a node cap
-                };
-                handles.push(scope.spawn(move || {
-                    let mut s = Searcher::with_tt(tt);
-                    s.stop = stop;
-                    s.repetitions = reps;
-                    // Stagger helpers so they explore different depths first.
-                    s.skip_depth = id % 2;
-                    s.search(&mut b, lim, false);
-                }));
-            }
-
-            let mut main = Searcher::with_tt(self.tt.clone());
-            main.stop = self.stop.clone();
-            main.repetitions = self.repetitions.clone();
-            let mut b = board.clone();
-            let out = main.search(&mut b, limits, verbose);
-
-            // Main thread finished: tell helpers to stop and collect them.
-            self.stop.store(true, Ordering::Relaxed);
-            for h in handles {
-                let _ = h.join();
-            }
-            (out, main.nodes)
-        });
-
-        self.stop.store(false, Ordering::Relaxed);
-        result.0
-    }
-}
