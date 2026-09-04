@@ -10,7 +10,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-INPUT, HIDDEN = 768, 2048
+import os as _os
+# Width is an experiment knob: the net must be sized to the data on hand, and
+# the Rust side reads the same value from CHESS_HIDDEN.
+INPUT = 768
+HIDDEN = int(_os.environ.get("CHESS_HIDDEN", "2048"))
 BUCKETS = 8                            # king buckets; must match src/nnue.rs
 FT_SIZE = INPUT * BUCKETS
 OUT_BUCKETS = 8                        # output buckets by piece count

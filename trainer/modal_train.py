@@ -5,6 +5,7 @@
 Uploads the training data to a Modal volume once, then runs the trainer on a
 GPU. The quantized net comes back to ./net.nnue.
 """
+import os as _os
 import modal
 
 app = modal.App("chess-nnue")
@@ -21,13 +22,15 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
 
 @app.function(
     image=image,
-    gpu="A100",
+    gpu=_os.environ.get("CHESS_GPU", "A100"),
     volumes={"/data": vol},
     timeout=60 * 60 * 4,
 )
 def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float,
-          checkpoint_every: int = 0, data_name: str = "train.txt"):
+          checkpoint_every: int = 0, data_name: str = "train.txt",
+          hidden: int = 2048):
     import os, subprocess, sys
+    env = dict(os.environ, CHESS_HIDDEN=str(hidden))
     cmd = [
         sys.executable, "/root/train.py",
         "--data", "/data/" + data_name,
@@ -41,7 +44,7 @@ def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float,
     ]
     if limit:
         cmd += ["--limit", str(limit)]
-    subprocess.run(cmd, check=True)
+    subprocess.run(cmd, check=True, env=env)
     vol.commit()
     # Return the best-val net plus any periodic checkpoints, so candidates can
     # be ranked by games rather than by loss alone.
@@ -102,7 +105,7 @@ def verify_upload() -> tuple:
 def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
          lr: float = 1e-3, limit: int = 0, skip_upload: bool = False,
          lam: float = 0.7, out: str = "net.nnue", checkpoint_every: int = 0,
-         volume_data: str = ""):
+         volume_data: str = "", hidden: int = 2048):
     import os
 
     gz = data.endswith(".gz")
@@ -145,7 +148,7 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
 
     print("training...")
     nets = train.remote(epochs, batch, lr, limit or None, lam, checkpoint_every,
-                        volume_data or "train.txt")
+                        volume_data or "train.txt", hidden)
     if isinstance(nets, bytes):          # older worker returning a single net
         nets = {"best": nets}
     for tag, blob in nets.items():

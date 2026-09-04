@@ -9,7 +9,7 @@ use crate::eval::Score;
 use crate::types::*;
 
 pub const INPUT: usize = 768;   // 64 squares x 6 piece types x 2 colors
-pub const HIDDEN: usize = 2048;
+pub const HIDDEN: usize = 1536;
 // King buckets: a piece's value depends on where our king sits, so each king
 // region gets its own weight set. Indexed by the perspective's own king.
 pub const BUCKETS: usize = 8;
@@ -19,11 +19,6 @@ pub const FT_SIZE: usize = INPUT * BUCKETS;
 // to 534 cp in the endgame; a single output layer has to reconcile that, and
 // splitting it is cheap — the expensive feature layer stays shared.
 pub const OUT_BUCKETS: usize = 8;
-
-// A second hidden layer. The feature layer is a linear map, so without this the
-// whole network is one nonlinearity deep. At 4096 -> 16 it costs 4% of the
-// parameters while adding real representational depth.
-pub const L2: usize = 16;
 
 #[inline(always)]
 pub fn output_bucket(piece_count: u32) -> usize {
@@ -58,10 +53,8 @@ pub struct Network {
     // Indexed [bucket * INPUT + feature][hidden]
     pub ft_weight: [[i16; HIDDEN]; FT_SIZE],
     pub ft_bias: [i16; HIDDEN],
-    // Per bucket: a hidden layer over both perspectives, then a scalar output.
-    pub l2_weight: [[[i16; HIDDEN * 2]; L2]; OUT_BUCKETS],
-    pub l2_bias: [[i16; L2]; OUT_BUCKETS],
-    pub out_weight: [[i16; L2]; OUT_BUCKETS],
+    // One output layer per piece-count bucket; both perspectives feed each.
+    pub out_weight: [[i16; HIDDEN * 2]; OUT_BUCKETS],
     pub out_bias: [i16; OUT_BUCKETS],
 }
 
@@ -281,24 +274,11 @@ pub fn evaluate_bucketed(net: &Network, acc: &Accumulator, side: Color,
     // i32 accumulation is enough: HIDDEN * QA * 32767 stays well inside range,
     // and it vectorizes where i64 would not.
     let b = bucket.min(OUT_BUCKETS - 1);
-
-    // Hidden layer over the clipped accumulator, then the scalar output.
-    let mut h = [0i32; L2];
-    for (j, hj) in h.iter_mut().enumerate() {
-        let w = &net.l2_weight[b][j];
-        let mut acc_sum: i32 = 0;
-        for i in 0..HIDDEN {
-            acc_sum += crelu(acc.v[us][i]) * w[i] as i32;
-            acc_sum += crelu(acc.v[them][i]) * w[HIDDEN + i] as i32;
-        }
-        // Activations are QA-scaled and weights QB-scaled, so the product
-        // carries QA*QB. Dividing by QB alone returns it to activation scale,
-        // where the bias is stored and the next clip applies.
-        *hj = (acc_sum / QB + net.l2_bias[b][j] as i32).clamp(0, QA);
-    }
+    let w = &net.out_weight[b];
     let mut sum: i32 = 0;
-    for j in 0..L2 {
-        sum += h[j] * net.out_weight[b][j] as i32;
+    for i in 0..HIDDEN {
+        sum += crelu(acc.v[us][i]) * w[i] as i32;
+        sum += crelu(acc.v[them][i]) * w[HIDDEN + i] as i32;
     }
     let sum = sum as i64;
     // Activations carry a factor of QA and out_weight a factor of QB, so the
@@ -320,8 +300,7 @@ pub fn load(path: &str) -> std::io::Result<Box<Network>> {
 /// filesystem, so it fetches the file and hands the bytes here.
 pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
     let expected = (FT_SIZE * HIDDEN + HIDDEN
-                    + OUT_BUCKETS * L2 * HIDDEN * 2 + OUT_BUCKETS * L2
-                    + OUT_BUCKETS * L2 + OUT_BUCKETS) * 2;
+                    + OUT_BUCKETS * HIDDEN * 2 + OUT_BUCKETS) * 2;
     if bytes.len() != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -345,15 +324,7 @@ pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
     }
     for j in 0..HIDDEN { net.ft_bias[j] = vals.next().unwrap(); }
     for b in 0..OUT_BUCKETS {
-        for j in 0..L2 {
-            for i in 0..HIDDEN * 2 { net.l2_weight[b][j][i] = vals.next().unwrap(); }
-        }
-    }
-    for b in 0..OUT_BUCKETS {
-        for j in 0..L2 { net.l2_bias[b][j] = vals.next().unwrap(); }
-    }
-    for b in 0..OUT_BUCKETS {
-        for j in 0..L2 { net.out_weight[b][j] = vals.next().unwrap(); }
+        for j in 0..HIDDEN * 2 { net.out_weight[b][j] = vals.next().unwrap(); }
     }
     for b in 0..OUT_BUCKETS { net.out_bias[b] = vals.next().unwrap(); }
     Ok(net)
@@ -418,13 +389,8 @@ mod quant_tests {
         };
         // One hidden unit fully active, one output weight.
         net.ft_bias[0] = QA as i16;         // activation saturates at QA
-        // One path through both layers with unit weights, so the expected
-        // output is computable by hand.
-        for b in 0..OUT_BUCKETS {
-            net.l2_weight[b][0][0] = QB as i16;
-            net.out_weight[b][0] = QB as i16;
-        }
-        net.l2_bias = [[0; L2]; OUT_BUCKETS];
+        // Every bucket gets the same weight so the test is bucket-agnostic.
+        for b in 0..OUT_BUCKETS { net.out_weight[b][0] = QB as i16; }
         net.out_bias = [0; OUT_BUCKETS];
 
         let board = Board::startpos();
@@ -471,13 +437,9 @@ mod incremental_tests {
         for i in 0..FT_SIZE { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
         for j in 0..HIDDEN { net.ft_bias[j] = next(); }
         for b in 0..OUT_BUCKETS {
-            for j in 0..L2 {
-                for i in 0..HIDDEN * 2 { net.l2_weight[b][j][i] = next(); }
-            }
-            for j in 0..L2 { net.l2_bias[b][j] = next(); }
-            for j in 0..L2 { net.out_weight[b][j] = next(); }
-            net.out_bias[b] = next();
+            for j in 0..HIDDEN * 2 { net.out_weight[b][j] = next(); }
         }
+        for b in 0..OUT_BUCKETS { net.out_bias[b] = next(); }
         net
     }
 
