@@ -278,6 +278,8 @@ def main():
     ap.add_argument('--lr', type=float, default=1e-3)
     ap.add_argument('--limit', type=int, default=None)
     ap.add_argument('--workers', type=int, default=4)
+    ap.add_argument('--checkpoint-every', type=int, default=0,
+                    help='also export a net every N epochs, for game testing')
     ap.add_argument('--lambda', dest='lam', type=float, default=0.7,
                     help='1.0 = pure search score, 0.0 = pure game result')
     a = ap.parse_args()
@@ -339,11 +341,20 @@ def main():
               f"val {val:.5f}  sat {100*sat_lo:.0f}%lo/{100*sat_hi:.0f}%hi  "
               f"{time.time()-t0:.0f}s", flush=True)
 
-        # Keep the best net, not the last — late epochs can overfit.
+        # Keep the best net by validation loss...
         if val < best_val:
             best_val = val
             quantize(model, a.out)
             torch.save(model.state_dict(), a.out + '.pt')
+
+        # ...but validation loss does not reliably track playing strength: it
+        # measures agreement with the teacher's scores, while strength depends
+        # on ranking moves correctly. Save periodic checkpoints so candidates
+        # can be compared in actual games.
+        if a.checkpoint_every and (ep + 1) % a.checkpoint_every == 0:
+            ckpt = f"{a.out}.ep{ep + 1}"
+            quantize(model, ckpt)
+            print(f"  checkpoint: {ckpt}", flush=True)
 
     print(f"best val loss {best_val:.5f}")
 

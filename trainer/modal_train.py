@@ -25,8 +25,9 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
     volumes={"/data": vol},
     timeout=60 * 60 * 4,
 )
-def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float):
-    import subprocess, sys
+def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float,
+          checkpoint_every: int = 0):
+    import os, subprocess, sys
     cmd = [
         sys.executable, "/root/train.py",
         "--data", "/data/train.txt",
@@ -36,13 +37,22 @@ def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float):
         "--lr", str(lr),
         "--workers", "8",
         "--lambda", str(lam),
+        "--checkpoint-every", str(checkpoint_every),
     ]
     if limit:
         cmd += ["--limit", str(limit)]
     subprocess.run(cmd, check=True)
     vol.commit()
+    # Return the best-val net plus any periodic checkpoints, so candidates can
+    # be ranked by games rather than by loss alone.
+    import glob
+    out = {}
     with open("/data/net.nnue", "rb") as f:
-        return f.read()
+        out["best"] = f.read()
+    for p in sorted(glob.glob("/data/net.nnue.ep*")):
+        with open(p, "rb") as f:
+            out[os.path.basename(p).split(".")[-1]] = f.read()
+    return out
 
 
 @app.function(image=image, volumes={"/data": vol}, timeout=60 * 60)
@@ -76,7 +86,7 @@ def verify_upload() -> tuple:
 @app.local_entrypoint()
 def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
          lr: float = 1e-3, limit: int = 0, skip_upload: bool = False,
-         lam: float = 0.7, out: str = "net.nnue"):
+         lam: float = 0.7, out: str = "net.nnue", checkpoint_every: int = 0):
     import os
 
     if not skip_upload:
@@ -109,7 +119,11 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
                 "re-run without --skip-upload")
 
     print("training...")
-    net = train.remote(epochs, batch, lr, limit or None, lam)
-    with open(out, "wb") as f:
-        f.write(net)
-    print(f"wrote {out} ({len(net):,} bytes)")
+    nets = train.remote(epochs, batch, lr, limit or None, lam, checkpoint_every)
+    if isinstance(nets, bytes):          # older worker returning a single net
+        nets = {"best": nets}
+    for tag, blob in nets.items():
+        path = out if tag == "best" else f"{out}.{tag}"
+        with open(path, "wb") as f:
+            f.write(blob)
+        print(f"wrote {path} ({len(blob):,} bytes)")
