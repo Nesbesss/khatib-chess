@@ -10,10 +10,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-INPUT, HIDDEN = 768, 1536
+INPUT, HIDDEN = 768, 2048
 BUCKETS = 8                            # king buckets; must match src/nnue.rs
 FT_SIZE = INPUT * BUCKETS
 OUT_BUCKETS = 8                        # output buckets by piece count
+L2 = 16                                # second hidden layer width
 QA, QB, SCALE = 255, 64, 400           # must match src/nnue.rs
 
 # King-square -> bucket, mirroring KING_BUCKET in src/nnue.rs.
@@ -167,8 +168,11 @@ class NNUE(nn.Module):
         # one-hot-sum input, but reads only the active rows.
         self.ft = nn.EmbeddingBag(FT_SIZE, HIDDEN, mode='sum')
         self.ft_bias = nn.Parameter(torch.zeros(HIDDEN))
-        # One output layer per piece-count bucket.
-        self.out = nn.Linear(HIDDEN * 2, OUT_BUCKETS)
+        # Per bucket: a hidden layer over both perspectives, then a scalar.
+        # Implemented as one wide layer and reshaped, so a single matmul covers
+        # every bucket and the right slice is selected afterwards.
+        self.l2 = nn.Linear(HIDDEN * 2, OUT_BUCKETS * L2)
+        self.out = nn.Linear(L2, OUT_BUCKETS)
         # Init wide enough that clipped-ReLU activations actually occupy
         # [0,1]. Too small and every quantized weight rounds toward zero,
         # which collapses the net to its bias after export.
@@ -191,6 +195,7 @@ class NNUE(nn.Module):
         with torch.no_grad():
             self.ft.weight.clamp_(-1.98, 1.98)
             self.ft_bias.clamp_(-1.98, 1.98)
+            self.l2.weight.clamp_(-127 / QB, 127 / QB)
             self.out.weight.clamp_(-127 / QB, 127 / QB)
 
     def forward(self, W, B, stm, ob=None):
@@ -202,11 +207,17 @@ class NNUE(nn.Module):
         them = ab * (1 - stm) + aw * stm
         x = torch.cat([us, them], dim=1)
         x = torch.clamp(x, 0.0, 1.0)          # clipped ReLU, scaled to [0,1]
-        # One column per bucket; select the one this position belongs to.
-        all_out = self.out(x)
+        # Second layer, then per-bucket selection.
+        h = self.l2(x).view(-1, OUT_BUCKETS, L2)
+        h = torch.clamp(h, 0.0, 1.0)
         if ob is None:
-            return all_out[:, OUT_BUCKETS // 2]
-        return all_out.gather(1, ob.unsqueeze(1)).squeeze(1)
+            ob = torch.full((x.shape[0],), OUT_BUCKETS // 2,
+                            dtype=torch.long, device=x.device)
+        idx = ob.view(-1, 1, 1).expand(-1, 1, L2)
+        hb = h.gather(1, idx).squeeze(1)                 # (batch, L2)
+        # out.weight is (OUT_BUCKETS, L2); pick this position's row.
+        w = self.out.weight[ob]                          # (batch, L2)
+        return (hb * w).sum(1) + self.out.bias[ob]
 
 
 def to_wdl(cp):
@@ -234,11 +245,15 @@ def quantize(model, path):
     """Write the flat int16 layout src/nnue.rs::load expects."""
     ftw = model.ft.weight.detach().cpu().numpy()      # (FT_SIZE, HIDDEN)
     ftb = model.ft_bias.detach().cpu().numpy()
-    ow = model.out.weight.detach().cpu().numpy()      # (OUT_BUCKETS, HIDDEN*2)
+    l2w = model.l2.weight.detach().cpu().numpy()      # (OUT_BUCKETS*L2, HIDDEN*2)
+    l2b = model.l2.bias.detach().cpu().numpy()        # (OUT_BUCKETS*L2,)
+    ow = model.out.weight.detach().cpu().numpy()      # (OUT_BUCKETS, L2)
     ob = model.out.bias.detach().cpu().numpy()        # (OUT_BUCKETS,)
 
     q_ftw = np.clip(np.round(ftw * QA), -32768, 32767).astype(np.int16)
     q_ftb = np.clip(np.round(ftb * QA), -32768, 32767).astype(np.int16)
+    q_l2w = np.clip(np.round(l2w * QB), -32768, 32767).astype(np.int16)
+    q_l2b = np.clip(np.round(l2b * QA), -32768, 32767).astype(np.int16)
     q_ow  = np.clip(np.round(ow * QB), -32768, 32767).astype(np.int16)
     # Bias shares the activation*weight scale so it adds directly to the sum.
     q_ob  = np.clip(np.round(ob * QA * QB), -32768, 32767).astype(np.int16)
@@ -259,11 +274,14 @@ def quantize(model, path):
         # EmbeddingBag stores [FT_SIZE][HIDDEN] already — the engine's layout.
         f.write(q_ftw.tobytes())
         f.write(q_ftb.tobytes())
+        f.write(q_l2w.tobytes())
+        f.write(q_l2b.tobytes())
         f.write(q_ow.tobytes())
         f.write(q_ob.tobytes())
     size = os.path.getsize(path)
     expected = (FT_SIZE * HIDDEN + HIDDEN
-                + OUT_BUCKETS * HIDDEN * 2 + OUT_BUCKETS) * 2
+                + OUT_BUCKETS * L2 * HIDDEN * 2 + OUT_BUCKETS * L2
+                + OUT_BUCKETS * L2 + OUT_BUCKETS) * 2
     assert size == expected, f"wrote {size} bytes, engine expects {expected}"
     print(f"wrote {path} ({size:,} bytes)")
 
