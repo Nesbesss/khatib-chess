@@ -20,3 +20,6 @@ nets/v6.nnue
 wasm/target/
 wasm/test/
 wasm/pkg/
+
+.DS_Store
+*.lrn
