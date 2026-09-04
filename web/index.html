@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chess Engine Visualizer</title>
+<title>Chess</title>
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --edge: #262b36;
@@ -29,12 +29,30 @@
   /* Board */
   .board-wrap { display: flex; gap: 10px; }
   #board {
-    display: grid; grid-template-columns: repeat(8, 64px);
-    grid-template-rows: repeat(8, 64px);
+    display: grid;
+    grid-template-columns: repeat(8, var(--sq));
+    grid-template-rows: repeat(8, var(--sq));
     border-radius: 6px; overflow: hidden; box-shadow: 0 8px 30px #0008;
   }
+  :root { --sq: 64px; }
+  /* On a phone the board should fill the width, not overflow it. */
+  @media (max-width: 900px) {
+    :root { --sq: min(calc((100vw - 62px) / 8), 64px); }
+    main { grid-template-columns: 1fr !important; padding: 10px; }
+    .board-wrap { justify-content: center; }
+    header { padding: 10px 12px; }
+    #treewrap { display: none; }        /* analysis view is desktop-only */
+    h1 { font-size: 13px; }
+    .stats { font-size: 11px; gap: 10px; }
+  }
   .sq { position: relative; display: flex; align-items: center; justify-content: center;
-        font-size: 46px; line-height: 1; cursor: pointer; user-select: none; }
+        font-size: calc(var(--sq) * 0.78); line-height: 1; cursor: pointer;
+        user-select: none; }
+  /* White pieces: white fill with a dark outline so they read on any square. */
+  .sq.w { color: #fff; text-shadow:
+      0 0 1px #000, 1px 1px 0 #222, -1px -1px 0 #222,
+      1px -1px 0 #222, -1px 1px 0 #222; }
+  .sq.b { color: #1a1a1a; text-shadow: 0 0 1px #000; }
   .sq.light { background: var(--light); } .sq.dark { background: var(--dark); }
   .sq.sel { box-shadow: inset 0 0 0 4px var(--accent); }
   .sq.check { background: #d9534f !important; }
@@ -49,7 +67,7 @@
   .board-holder { position: relative; }
 
   /* Eval bar */
-  #evalbar { width: 26px; height: 512px; background: #111; border-radius: 4px;
+  #evalbar { width: 22px; height: calc(var(--sq) * 8); background: #111; border-radius: 4px;
              overflow: hidden; display: flex; flex-direction: column-reverse;
              position: relative; box-shadow: 0 4px 20px #0006; }
   #evalfill { background: #f0f0f0; transition: height .35s cubic-bezier(.4,0,.2,1); }
@@ -103,7 +121,7 @@
 </head>
 <body>
 <header>
-  <h1>Chess Engine — search visualizer</h1>
+  <h1>Chess</h1>
   <div class="row">
     <button id="go" class="primary">Analyze</button>
     <button id="play">Engine move</button>
@@ -187,7 +205,9 @@
 </main>
 
 <script>
-const GLYPH = { P:'♙',N:'♘',B:'♗',R:'♖',Q:'♕',K:'♔',
+// Use the SOLID glyph set for both sides and colour them, so white pieces
+// stay visible on light squares. The outline set washes out badly.
+const GLYPH = { P:'♟',N:'♞',B:'♝',R:'♜',Q:'♛',K:'♚',
                 p:'♟',n:'♞',b:'♝',r:'♜',q:'♛',k:'♚' };
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
 
@@ -226,7 +246,10 @@ function drawBoard() {
       const d = document.createElement('div');
       d.className = 'sq ' + ((f + r) % 2 ? 'light' : 'dark');
       const p = pieces[name];
-      if (p) d.textContent = GLYPH[p];
+      if (p) {
+        d.textContent = GLYPH[p];
+        d.classList.add(p === p.toUpperCase() ? 'w' : 'b');
+      }
       if (sel === name) d.classList.add('sel');
       if (targets.includes(name)) {
         if (p) d.classList.add('cap');
@@ -250,8 +273,11 @@ function drawBoard() {
 /* PV arrows over the board */
 function drawArrows() {
   const svg = $('arrows');
+  const px = parseFloat(getComputedStyle(document.documentElement)
+                        .getPropertyValue('--sq')) || 64;
+  const dim = px * 8;
   svg.setAttribute('viewBox', '0 0 512 512');
-  svg.style.width = '512px'; svg.style.height = '512px';
+  svg.style.width = dim + 'px'; svg.style.height = dim + 'px';
   const sq = n => {
     const f = 'abcdefgh'.indexOf(n[0]), r = +n[1];
     return [f * 64 + 32, (8 - r) * 64 + 32];
