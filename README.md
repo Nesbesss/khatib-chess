@@ -39,6 +39,7 @@ intuition both mislead:
 | Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
 | SEE pruning in the main search | **−191 Elo — reverted** |
 | Logarithmic LMR table + history adjustment | ±0 Elo, shallower search — reverted |
+| Countermove + continuation history | **−191 Elo** despite 40% fewer nodes — reverted |
 | King-capture fix | ±0 Elo, but fixed a hard crash |
 
 Network numbers are the *isolated* contribution: the same binary with and
@@ -202,6 +203,21 @@ statistically identical over 200 games, despite third-party measurements
 disagreeing by 70 Elo about which was better. None of the hyperparameter
 changes moved the needle, which points at training data as the binding
 constraint rather than optimisation.
+
+### Node counts are not a proxy for strength
+
+Three separate changes on this project reduced node counts and did not improve
+play:
+
+| Change | Nodes | Elo |
+|---|---|---|
+| SEE pruning in main search | fewer | −191 |
+| Logarithmic LMR table | fewer at some depths | ±0, shallower |
+| Countermove + continuation history | **−40%** | **−191** |
+
+Fewer nodes to reach a given depth means the *ordering* improved, but pruning
+harder on that ordering can cut lines that mattered. The same holds in reverse
+for validation loss (see above). Only games measure strength.
 
 ### Measurements that said "don't bother"
 
