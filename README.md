@@ -153,15 +153,17 @@ and promotion requires a margin whose confidence interval excludes zero.
 Measured against the handcrafted eval, same binary, so the numbers are
 comparable:
 
-| Config | Result |
-|---|---|
-| 50 epochs, λ=0.9, lr 1e-3 | **+132 Elo** — best |
-| 80 epochs, λ=0.8, lr 1e-3 | +89 Elo |
-| 30 epochs, λ=1.0, lr 7e-4 | +83 Elo |
+| Config | vs handcrafted | head-to-head vs config 1 |
+|---|---|---|
+| 50 epochs, λ=0.9, lr 1e-3 | +132 Elo | — |
+| 80 epochs, λ=0.8, lr 1e-3 | +89 Elo | not tested |
+| 30 epochs, λ=1.0, lr 7e-4 | +83 Elo | **+16 ±48 (a tie)** |
 
-More epochs and a lower learning rate both failed to improve on the baseline
-configuration, which points at training data as the binding constraint rather
-than optimisation.
+The head-to-head is the number that settles it: configs 1 and 3 are
+statistically identical over 200 games, despite third-party measurements
+disagreeing by 70 Elo about which was better. None of the hyperparameter
+changes moved the needle, which points at training data as the binding
+constraint rather than optimisation.
 
 ### Measurements that said "don't bother"
 
