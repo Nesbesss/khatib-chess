@@ -26,11 +26,11 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
     timeout=60 * 60 * 4,
 )
 def train(epochs: int, batch: int, lr: float, limit: int | None, lam: float,
-          checkpoint_every: int = 0):
+          checkpoint_every: int = 0, data_name: str = "train.txt"):
     import os, subprocess, sys
     cmd = [
         sys.executable, "/root/train.py",
-        "--data", "/data/train.txt",
+        "--data", "/data/" + data_name,
         "--out", "/data/net.nnue",
         "--epochs", str(epochs),
         "--batch", str(batch),
@@ -101,10 +101,13 @@ def verify_upload() -> tuple:
 @app.local_entrypoint()
 def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
          lr: float = 1e-3, limit: int = 0, skip_upload: bool = False,
-         lam: float = 0.7, out: str = "net.nnue", checkpoint_every: int = 0):
+         lam: float = 0.7, out: str = "net.nnue", checkpoint_every: int = 0,
+         volume_data: str = ""):
     import os
 
     gz = data.endswith(".gz")
+    if volume_data:
+        skip_upload = True
     if not skip_upload:
         size = os.path.getsize(data)
         print(f"uploading {data} ({size/1e6:.0f} MB) to volume...")
@@ -141,7 +144,8 @@ def main(data: str = "data/train.txt", epochs: int = 30, batch: int = 16384,
                 "re-run without --skip-upload")
 
     print("training...")
-    nets = train.remote(epochs, batch, lr, limit or None, lam, checkpoint_every)
+    nets = train.remote(epochs, batch, lr, limit or None, lam, checkpoint_every,
+                        volume_data or "train.txt")
     if isinstance(nets, bytes):          # older worker returning a single net
         nets = {"best": nets}
     for tag, blob in nets.items():
