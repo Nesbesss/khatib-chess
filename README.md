@@ -1,7 +1,9 @@
 # Khatib
 
-A bitboard chess engine in Rust, named for what a deep search does to a position with an NNUE neural-network evaluation, plus a
-web visualizer that shows the search as it happens.
+A bitboard chess engine in Rust with an NNUE neural-network evaluation,
+plus a web visualizer that shows the search as it happens.
+
+Named after its author, Nassim Khatib.
 
 ## Quick start
 
@@ -23,7 +25,7 @@ pass `--net <path>`.
 | Move generation | 160 M nodes/sec, 33/33 standard perft positions exact |
 | Search | alpha-beta with IIR, futility pruning, LMR, aspiration windows |
 | Threading | Lazy SMP — depth 19 → 22 in 3 s going from 1 to 8 threads |
-| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, **+179 Elo** over handcrafted |
+| Evaluation | NNUE, 768×8 buckets → 1536×2 → 8 output buckets, **+313 Elo** over the previous net |
 | Protocol | UCI — runs in any chess GUI |
 
 ### Measured changes
@@ -33,26 +35,44 @@ intuition both mislead:
 
 | Change | Result |
 |---|---|
+| NNUE v7 (1536 wide, Stockfish-labelled, 8 output buckets) | **+313 Elo** over v4 |
 | IIR + futility + recapture extensions | **+191 Elo** |
+| Countermove history | **+117 ± 51 Elo** (200 games) |
+| NNUE v3 (24.3M positions) | +179 Elo, and +117 head-to-head vs v2 |
 | NNUE v2 (king buckets, 1024 wide, 11.2M positions) | +127 Elo (v1 was +60) |
-| NNUE v3 (same net, 24.3M positions) | **+179 Elo**, and +117 head-to-head vs v2 |
+| Logarithmic LMR table | **+60 ± 49 Elo** (200 games) |
 | Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
-| SEE pruning in the main search | **−191 Elo — reverted** |
-| Logarithmic LMR table + history adjustment | ±0 Elo, shallower search — reverted |
-| Countermove + continuation history | **−191 Elo** despite 40% fewer nodes — reverted |
+| SEE pruning in the main search | −191 Elo — reverted, **unverified** |
 | King-capture fix | ±0 Elo, but fixed a hard crash |
+
+Countermove history and logarithmic LMR stack to **+56 Elo**, not +177: better
+move ordering is what makes late-move reductions safe, so the two claim
+overlapping ground.
+
+### A measurement bug that invalidated earlier results
+
+Every match script generated its opening positions with a *one-node* search,
+which is deterministic — so all "200 games" were the same game played 200
+times. It surfaced when a net played against itself and scored +10 =10 −10
+instead of something near even.
+
+Three changes had been rejected on that broken harness. Re-measured with 50
+distinct openings, countermove history was **+117** (recorded as −191) and
+logarithmic LMR was **+60** (recorded as ±0) — both are now in the engine. The
+SEE-pruning result above has not been re-measured and should not be trusted.
+A single lost game replayed produces exactly −191 Elo, which is what those
+numbers were.
 
 Network numbers are the *isolated* contribution: the same binary with and
 without the net, so they exclude search gains and are comparable across
 versions.
 
-**These figures do not add up.** The whole engine measures **+53 Elo** against
-the previous complete version (old search + v1 net), not +191 plus +127. Two
-reasons: Elo gains compound sub-linearly rather than summing, and the search
-improvements were measured against the *handcrafted* evaluation — a strong
-network already finds good moves, so sharper pruning buys less. The
-end-to-end number against the previous engine is the honest headline; the
-per-change numbers show which direction each change moved.
+**These figures do not add up, and that is expected.** Elo gains compound
+sub-linearly rather than summing, and search improvements measured against the
+*handcrafted* evaluation buy less once a strong network is in place — it
+already finds good moves. Per-change numbers show which direction a change
+moved; only the end-to-end number against a previous complete version is a
+headline.
 
 ## Architecture
 
@@ -76,9 +96,15 @@ score, with refuted branches dimmed and the principal variation as a chain.
 
 ## Current state
 
-`net.nnue` is NNUE v3: **+179 Elo** over the handcrafted evaluation, trained on
-24.3M Stockfish-labelled positions. All training data and every candidate
-network are kept locally under `data/` and `nets/`.
+`net.nnue` is NNUE v7: **+313 Elo** over v4, trained on Stockfish-labelled
+positions.
+
+**Measured strength: ~2544 Elo** — 42% against Stockfish limited to 2600
+(50 games, colour-reversed opening pairs). Strong club level: it will beat
+most club players and lose to a titled one.
+
+Every candidate network is kept under `nets/`; training data lives in `data/`
+and is not committed.
 
 Cloud training is paused — the Modal workspace hit its spend limit. Everything
 below still works locally (slower); raising the limit resumes the cloud path

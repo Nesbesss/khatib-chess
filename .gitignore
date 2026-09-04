@@ -5,3 +5,18 @@
 /data/*.txt
 /data/*.log
 __pycache__/
+
+# Intermediate training checkpoints: only the promoted nets are useful.
+nets/*.ep*
+
+# Superseded nets; v7 is what ships.
+nets/v1_*.nnue
+nets/v2_*.nnue
+nets/v3_*.nnue
+nets/v4_*.nnue
+nets/v6.nnue
+
+# Build output.
+wasm/target/
+wasm/test/
+wasm/pkg/
