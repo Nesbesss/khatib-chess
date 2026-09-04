@@ -21,7 +21,7 @@ vol = modal.Volume.from_name("chess-nnue-data", create_if_missing=True)
 
 @app.function(
     image=image,
-    gpu="A10G",
+    gpu="A100",
     volumes={"/data": vol},
     timeout=60 * 60 * 4,
 )
