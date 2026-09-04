@@ -195,15 +195,18 @@ impl Searcher {
         // several hundred centipawns because opposition is a rule, not a
         // pattern it can learn from position data.
         if crate::eval::kpk_is_draw(board) == Some(true) { return crate::eval::DRAW; }
+        // Pick the output bucket from the material on the board, so opening
+        // and endgame positions are read on their own scale.
+        let bucket = crate::nnue::output_bucket(board.all.count_ones());
         match (self.net(), &self.acc) {
             (Some(net), Some(stack)) =>
-                crate::nnue::evaluate(net, stack.top(), board.side),
+                crate::nnue::evaluate_bucketed(net, stack.top(), board.side, bucket),
             // forced_net set but no accumulator: fall back to a refresh so a
             // match never silently compares the wrong evaluations.
             (Some(net), None) => {
                 let mut acc = crate::nnue::Accumulator::new(net);
                 acc.refresh(net, board);
-                crate::nnue::evaluate(net, &acc, board.side)
+                crate::nnue::evaluate_bucketed(net, &acc, board.side, bucket)
             }
             _ => crate::eval::evaluate_hce(board),
         }

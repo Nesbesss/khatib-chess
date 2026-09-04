@@ -165,7 +165,8 @@ pub fn evaluate(board: &Board) -> Score {
         // through make/unmake once the net is proven to gain Elo.
         let mut acc = crate::nnue::Accumulator::new(net);
         acc.refresh(net, board);
-        return crate::nnue::evaluate(net, &acc, board.side);
+        let bucket = crate::nnue::output_bucket(board.all.count_ones());
+        return crate::nnue::evaluate_bucketed(net, &acc, board.side, bucket);
     }
     evaluate_hce(board)
 }

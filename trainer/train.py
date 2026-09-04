@@ -13,6 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 INPUT, HIDDEN = 768, 1536
 BUCKETS = 8                            # king buckets; must match src/nnue.rs
 FT_SIZE = INPUT * BUCKETS
+OUT_BUCKETS = 8                        # output buckets by piece count
 QA, QB, SCALE = 255, 64, 400           # must match src/nnue.rs
 
 # King-square -> bucket, mirroring KING_BUCKET in src/nnue.rs.
@@ -20,6 +21,16 @@ QA, QB, SCALE = 255, 64, 400           # must match src/nnue.rs
 KING_BUCKET = [0, 0, 1, 1, 2, 2, 3, 3] * 4 + [4, 4, 5, 5, 6, 6, 7, 7] * 4
 
 PIECE_IDX = {'p':0,'n':1,'b':2,'r':3,'q':4,'k':5}
+
+
+def output_bucket(fen):
+    """Which output layer this position uses, by piece count.
+
+    Mean |eval| runs 132 cp in the opening to 534 cp in the endgame; giving
+    each phase its own output layer stops one layer having to reconcile them.
+    """
+    n = sum(1 for c in fen.split()[0] if c.isalpha())
+    return min(OUT_BUCKETS - 1, max(0, (n - 2) // 4))
 
 
 def fen_to_features(fen):
@@ -68,7 +79,7 @@ class PositionSet(Dataset):
     back to pure score training (wdl = -1 marks 'unknown').
     """
     def __init__(self, path, limit=None):
-        self.stm, self.scores, self.wdls = [], [], []
+        self.stm, self.scores, self.wdls, self.obs = [], [], [], []
         self.w_off, self.b_off = [0], [0]
         w_flat, b_flat = [], []
         t0 = time.time()
@@ -90,12 +101,14 @@ class PositionSet(Dataset):
                 except ValueError:
                     continue
                 w, b, stm = fen_to_features(fen.strip())
+                ob = output_bucket(fen.strip())
                 w_flat.extend(w); b_flat.extend(b)
                 self.w_off.append(len(w_flat))
                 self.b_off.append(len(b_flat))
                 self.stm.append(stm)
                 self.scores.append(score)
                 self.wdls.append(wdl)
+                self.obs.append(ob)
                 if (i + 1) % 1_000_000 == 0:
                     print(f"  loaded {i+1:,} in {time.time()-t0:.0f}s", flush=True)
         self.w_flat = np.array(w_flat, dtype=np.int32)
@@ -105,6 +118,7 @@ class PositionSet(Dataset):
         self.stm = np.array(self.stm, dtype=np.int8)
         self.scores = np.array(self.scores, dtype=np.float32)
         self.wdls = np.array(self.wdls, dtype=np.float32)
+        self.obs = np.array(self.obs, dtype=np.int8)
         known = int((self.wdls >= 0).sum())
         print(f"  {known:,} samples carry a game result "
               f"({100*known/max(len(self.wdls),1):.0f}%)", flush=True)
@@ -116,7 +130,8 @@ class PositionSet(Dataset):
     def __getitem__(self, i):
         w = self.w_flat[self.w_off[i]:self.w_off[i+1]]
         b = self.b_flat[self.b_off[i]:self.b_off[i+1]]
-        return w, b, int(self.stm[i]), float(self.scores[i]), float(self.wdls[i])
+        return (w, b, int(self.stm[i]), float(self.scores[i]),
+                float(self.wdls[i]), int(self.obs[i]))
 
 
 def collate(batch):
@@ -133,7 +148,8 @@ def collate(batch):
     stms = torch.empty(n, dtype=torch.long)
     scores = torch.empty(n, dtype=torch.float32)
     wdls = torch.empty(n, dtype=torch.float32)
-    for i, (w, b, stm, sc, wd) in enumerate(batch):
+    obs = torch.empty(n, dtype=torch.long)
+    for i, (w, b, stm, sc, wd, ob) in enumerate(batch):
         w_off.append(len(w_flat)); b_off.append(len(b_flat))
         w_flat.extend(w.tolist()); b_flat.extend(b.tolist())
         stms[i] = stm; scores[i] = sc; wdls[i] = wd
@@ -141,7 +157,7 @@ def collate(batch):
          torch.tensor(w_off, dtype=torch.long))
     B = (torch.tensor(b_flat, dtype=torch.long),
          torch.tensor(b_off, dtype=torch.long))
-    return W, B, stms, scores, wdls
+    return W, B, stms, scores, wdls, obs
 
 
 class NNUE(nn.Module):
@@ -151,7 +167,8 @@ class NNUE(nn.Module):
         # one-hot-sum input, but reads only the active rows.
         self.ft = nn.EmbeddingBag(FT_SIZE, HIDDEN, mode='sum')
         self.ft_bias = nn.Parameter(torch.zeros(HIDDEN))
-        self.out = nn.Linear(HIDDEN * 2, 1)
+        # One output layer per piece-count bucket.
+        self.out = nn.Linear(HIDDEN * 2, OUT_BUCKETS)
         # Init wide enough that clipped-ReLU activations actually occupy
         # [0,1]. Too small and every quantized weight rounds toward zero,
         # which collapses the net to its bias after export.
@@ -176,7 +193,7 @@ class NNUE(nn.Module):
             self.ft_bias.clamp_(-1.98, 1.98)
             self.out.weight.clamp_(-127 / QB, 127 / QB)
 
-    def forward(self, W, B, stm):
+    def forward(self, W, B, stm, ob=None):
         aw = self.ft(W[0], W[1]) + self.ft_bias   # white-perspective
         ab = self.ft(B[0], B[1]) + self.ft_bias   # black-perspective
         # Order the pair as [side-to-move, opponent] to match inference.
@@ -185,9 +202,11 @@ class NNUE(nn.Module):
         them = ab * (1 - stm) + aw * stm
         x = torch.cat([us, them], dim=1)
         x = torch.clamp(x, 0.0, 1.0)          # clipped ReLU, scaled to [0,1]
-        # Output is a logit in units of SCALE centipawns, matching
-        # nnue::evaluate's final division.
-        return self.out(x).squeeze(1)
+        # One column per bucket; select the one this position belongs to.
+        all_out = self.out(x)
+        if ob is None:
+            return all_out[:, OUT_BUCKETS // 2]
+        return all_out.gather(1, ob.unsqueeze(1)).squeeze(1)
 
 
 def to_wdl(cp):
@@ -215,14 +234,14 @@ def quantize(model, path):
     """Write the flat int16 layout src/nnue.rs::load expects."""
     ftw = model.ft.weight.detach().cpu().numpy()      # (FT_SIZE, HIDDEN)
     ftb = model.ft_bias.detach().cpu().numpy()
-    ow = model.out.weight.detach().cpu().numpy()[0]   # (HIDDEN*2,)
-    ob = model.out.bias.detach().cpu().numpy()[0]
+    ow = model.out.weight.detach().cpu().numpy()      # (OUT_BUCKETS, HIDDEN*2)
+    ob = model.out.bias.detach().cpu().numpy()        # (OUT_BUCKETS,)
 
     q_ftw = np.clip(np.round(ftw * QA), -32768, 32767).astype(np.int16)
     q_ftb = np.clip(np.round(ftb * QA), -32768, 32767).astype(np.int16)
     q_ow  = np.clip(np.round(ow * QB), -32768, 32767).astype(np.int16)
     # Bias shares the activation*weight scale so it adds directly to the sum.
-    q_ob  = np.int32(round(float(ob) * QA * QB))
+    q_ob  = np.clip(np.round(ob * QA * QB), -32768, 32767).astype(np.int16)
 
     clipped = int((np.abs(np.round(ftw * QA)) > 32767).sum() +
                   (np.abs(np.round(ow * QB)) > 32767).sum())
@@ -241,9 +260,10 @@ def quantize(model, path):
         f.write(q_ftw.tobytes())
         f.write(q_ftb.tobytes())
         f.write(q_ow.tobytes())
-        f.write(struct.pack('<h', int(np.clip(q_ob, -32768, 32767))))
+        f.write(q_ob.tobytes())
     size = os.path.getsize(path)
-    expected = (FT_SIZE * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2
+    expected = (FT_SIZE * HIDDEN + HIDDEN
+                + OUT_BUCKETS * HIDDEN * 2 + OUT_BUCKETS) * 2
     assert size == expected, f"wrote {size} bytes, engine expects {expected}"
     print(f"wrote {path} ({size:,} bytes)")
 
@@ -307,11 +327,11 @@ def main():
     for ep in range(a.epochs):
         model.train()
         tot, nb, t0 = 0.0, 0, time.time()
-        for W, B, stm, sc, wd in dl:
+        for W, B, stm, sc, wd, ob in dl:
             W = (W[0].to(dev), W[1].to(dev))
             B = (B[0].to(dev), B[1].to(dev))
-            stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
-            pred = model(W, B, stm)
+            stm, sc, wd, ob = stm.to(dev), sc.to(dev), wd.to(dev), ob.to(dev)
+            pred = model(W, B, stm, ob)
             loss = nnue_loss(pred, sc, wd, a.lam)
             opt.zero_grad(set_to_none=True)
             loss.backward()
@@ -323,17 +343,17 @@ def main():
         # Saturation check: hidden units pinned at the clamp bounds carry no
         # gradient and no information. High values mean wasted capacity.
         with torch.no_grad():
-            Wb, _Bb, _sb, _sc, _wd = next(iter(vdl))
+            Wb, _Bb, _sb, _sc, _wd, _ob = next(iter(vdl))
             acts = model.ft(Wb[0].to(dev), Wb[1].to(dev)) + model.ft_bias
             sat_lo = (acts < 0).float().mean().item()
             sat_hi = (acts > 1).float().mean().item()
         vtot, vnb = 0.0, 0
         with torch.no_grad():
-            for W, B, stm, sc, wd in vdl:
+            for W, B, stm, sc, wd, ob in vdl:
                 W = (W[0].to(dev), W[1].to(dev))
                 B = (B[0].to(dev), B[1].to(dev))
-                stm, sc, wd = stm.to(dev), sc.to(dev), wd.to(dev)
-                loss = nnue_loss(model(W, B, stm), sc, wd, a.lam)
+                stm, sc, wd, ob = stm.to(dev), sc.to(dev), wd.to(dev), ob.to(dev)
+                loss = nnue_loss(model(W, B, stm, ob), sc, wd, a.lam)
                 vtot += loss.item(); vnb += 1
         val = vtot / max(vnb, 1)
         print(f"epoch {ep+1}/{a.epochs}  train {tot/max(nb,1):.5f}  "

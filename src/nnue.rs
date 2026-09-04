@@ -15,6 +15,17 @@ pub const HIDDEN: usize = 1536;
 pub const BUCKETS: usize = 8;
 pub const FT_SIZE: usize = INPUT * BUCKETS;
 
+// Output buckets by piece count. Mean |eval| runs from 132 cp in the opening
+// to 534 cp in the endgame; a single output layer has to reconcile that, and
+// splitting it is cheap — the expensive feature layer stays shared.
+pub const OUT_BUCKETS: usize = 8;
+
+#[inline(always)]
+pub fn output_bucket(piece_count: u32) -> usize {
+    // 2..32 pieces -> 0..7
+    (((piece_count.saturating_sub(2)) / 4) as usize).min(OUT_BUCKETS - 1)
+}
+
 // Maps a king square (from that side's perspective) to a bucket:
 // Eight buckets: four files x two ranks (own half vs advanced). A king on the
 // back rank and one that has walked up the board want different weights, and
@@ -42,9 +53,9 @@ pub struct Network {
     // Indexed [bucket * INPUT + feature][hidden]
     pub ft_weight: [[i16; HIDDEN]; FT_SIZE],
     pub ft_bias: [i16; HIDDEN],
-    // Output reads both perspectives: [side-to-move, opponent].
-    pub out_weight: [i16; HIDDEN * 2],
-    pub out_bias: i16,
+    // One output layer per piece-count bucket; both perspectives feed each.
+    pub out_weight: [[i16; HIDDEN * 2]; OUT_BUCKETS],
+    pub out_bias: [i16; OUT_BUCKETS],
 }
 
 // The running first-layer output for both perspectives.
@@ -252,20 +263,28 @@ fn crelu(x: i16) -> i32 {
 }
 
 pub fn evaluate(net: &Network, acc: &Accumulator, side: Color) -> Score {
+    // Callers that do not know the piece count get the middlegame bucket.
+    evaluate_bucketed(net, acc, side, OUT_BUCKETS / 2)
+}
+
+pub fn evaluate_bucketed(net: &Network, acc: &Accumulator, side: Color,
+                         bucket: usize) -> Score {
     // The side to move always reads perspective 0 of the pair.
     let (us, them) = if side == Color::White { (0, 1) } else { (1, 0) };
     // i32 accumulation is enough: HIDDEN * QA * 32767 stays well inside range,
     // and it vectorizes where i64 would not.
+    let b = bucket.min(OUT_BUCKETS - 1);
+    let w = &net.out_weight[b];
     let mut sum: i32 = 0;
     for i in 0..HIDDEN {
-        sum += crelu(acc.v[us][i]) * net.out_weight[i] as i32;
-        sum += crelu(acc.v[them][i]) * net.out_weight[HIDDEN + i] as i32;
+        sum += crelu(acc.v[us][i]) * w[i] as i32;
+        sum += crelu(acc.v[them][i]) * w[HIDDEN + i] as i32;
     }
     let sum = sum as i64;
     // Activations carry a factor of QA and out_weight a factor of QB, so the
     // product is QA*QB times the float logit. out_bias is stored at that same
     // combined scale. Convert the logit to centipawns with SCALE.
-    let logit_num = sum + net.out_bias as i64;
+    let logit_num = sum + net.out_bias[b] as i64;
     ((logit_num * SCALE as i64) / (QA as i64 * QB as i64)) as Score
 }
 
@@ -280,7 +299,8 @@ pub fn load(path: &str) -> std::io::Result<Box<Network>> {
 /// Parse a network from bytes already in memory. The browser build has no
 /// filesystem, so it fetches the file and hands the bytes here.
 pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
-    let expected = (FT_SIZE * HIDDEN + HIDDEN + HIDDEN * 2 + 1) * 2;
+    let expected = (FT_SIZE * HIDDEN + HIDDEN
+                    + OUT_BUCKETS * HIDDEN * 2 + OUT_BUCKETS) * 2;
     if bytes.len() != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -303,8 +323,10 @@ pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
         }
     }
     for j in 0..HIDDEN { net.ft_bias[j] = vals.next().unwrap(); }
-    for j in 0..HIDDEN * 2 { net.out_weight[j] = vals.next().unwrap(); }
-    net.out_bias = vals.next().unwrap();
+    for b in 0..OUT_BUCKETS {
+        for j in 0..HIDDEN * 2 { net.out_weight[b][j] = vals.next().unwrap(); }
+    }
+    for b in 0..OUT_BUCKETS { net.out_bias[b] = vals.next().unwrap(); }
     Ok(net)
 }
 
@@ -366,9 +388,10 @@ mod quant_tests {
             Box::from_raw(p)
         };
         // One hidden unit fully active, one output weight.
-        net.ft_bias[0] = QA as i16;      // activation saturates at QA
-        net.out_weight[0] = QB as i16;   // weight of 1.0 in float terms
-        net.out_bias = 0;
+        net.ft_bias[0] = QA as i16;         // activation saturates at QA
+        // Every bucket gets the same weight so the test is bucket-agnostic.
+        for b in 0..OUT_BUCKETS { net.out_weight[b][0] = QB as i16; }
+        net.out_bias = [0; OUT_BUCKETS];
 
         let board = Board::startpos();
         let mut acc = Accumulator::new(&net);
@@ -413,8 +436,10 @@ mod incremental_tests {
         };
         for i in 0..FT_SIZE { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
         for j in 0..HIDDEN { net.ft_bias[j] = next(); }
-        for j in 0..HIDDEN * 2 { net.out_weight[j] = next(); }
-        net.out_bias = next();
+        for b in 0..OUT_BUCKETS {
+            for j in 0..HIDDEN * 2 { net.out_weight[b][j] = next(); }
+        }
+        for b in 0..OUT_BUCKETS { net.out_bias[b] = next(); }
         net
     }
 
