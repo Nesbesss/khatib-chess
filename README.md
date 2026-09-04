@@ -229,3 +229,32 @@ Two optimisations looked obviously right and turned out not to be:
 - **Stockfish depth 12 instead of depth 10.** Correlation 0.982, median
   difference 22 cp, 7% disagreeing by more than 100 cp — for 2.7x the compute.
   More positions is the better use of the same budget.
+
+## Benchmarks
+
+Two suites, both with answers verified by deep search:
+
+```bash
+python3 scripts/benchmark.py --all --ms 1000                      # standard tactics
+python3 scripts/benchmark.py --all --ms 500 --suite benchmarks/hard.epd
+```
+
+| Suite | Ours | Stockfish 18 |
+|---|---|---|
+| Tactics (25 positions, 1 s) | 22/25 — 88% | 25/25 — 100% |
+| Hard (30 positions, 0.5 s) | 8/30 — 27% | 15/30 — 50% |
+| Hard (30 positions, 2 s) | 10/30 — 33% | 15/30 — 50% |
+
+The hard suite is generated, not hand-written. `scripts/make_suite.py` samples
+real positions, settles each with a long multi-threaded search, then keeps only
+those a short search gets *wrong* — so the answer is correct by construction and
+the position is hard by construction.
+
+This matters: of twenty hard positions written from memory, **thirteen had
+answer keys that deep search disagreed with**, including one labelled a forced
+mate that wasn't even best. A hand-written suite measures the author's memory
+before it measures any engine.
+
+Stockfish plateaus at 50% on the hard suite while extra time still helps this
+engine, which is the useful signal — the remaining positions need evaluation
+quality rather than more search.
