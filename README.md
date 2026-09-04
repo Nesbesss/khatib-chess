@@ -23,7 +23,7 @@ pass `--net <path>`.
 | Move generation | 160 M nodes/sec, 33/33 standard perft positions exact |
 | Search | alpha-beta with IIR, futility pruning, LMR, aspiration windows |
 | Threading | Lazy SMP — depth 19 → 22 in 3 s going from 1 to 8 threads |
-| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, **+127 Elo** over handcrafted |
+| Evaluation | NNUE, 768×4 buckets → 1024×2 → 1, **+179 Elo** over handcrafted |
 | Protocol | UCI — runs in any chess GUI |
 
 ### Measured changes
@@ -34,7 +34,8 @@ intuition both mislead:
 | Change | Result |
 |---|---|
 | IIR + futility + recapture extensions | **+191 Elo** |
-| NNUE v2 (king buckets, 1024 wide, 11.2M positions) | **+127 Elo** (v1 was +60) |
+| NNUE v2 (king buckets, 1024 wide, 11.2M positions) | +127 Elo (v1 was +60) |
+| NNUE v3 (same net, 24.3M positions) | **+179 Elo**, and +117 head-to-head vs v2 |
 | Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
 | SEE pruning in the main search | **−191 Elo — reverted** |
 | Logarithmic LMR table + history adjustment | ±0 Elo, shallower search — reverted |
@@ -147,12 +148,15 @@ Learning curves, comparing 11.2M against 24.3M training positions:
 | 11.2M positions | 0.0334 | +0.0150 | plateaued |
 | 24.3M positions | 0.0291 | +0.0089 | plateaued |
 
-Doubling the data improved validation loss and nearly halved the overfitting
-gap, so the extra positions were used rather than memorised. But **both runs
-plateau**, and no hyperparameter change moved the needle either — which points
-at the network architecture, not data volume or optimisation, as the next
-binding constraint. A wider layer or more feature buckets is the change most
-likely to produce another step.
+Both runs plateau on validation loss, which looked like the architecture had
+become the constraint. **That inference was wrong.** Played head to head, the
+24.3M-position net beats the 11.2M one by **+117 Elo** (±51 over 200 games).
+
+A plateau in validation loss does not mean the extra data was wasted: the loss
+measures agreement with Stockfish scores, while playing strength depends on
+getting the *ordering* of candidate moves right. Only games measure that. This
+is the same lesson as the SEE-pruning and LMR reverts, from the opposite
+direction — proxies mislead in both directions, so measure in games.
 
 ### Comparing candidates
 
