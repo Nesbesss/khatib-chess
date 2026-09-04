@@ -163,6 +163,23 @@ that reason.
   defending king holding the opposition evaluates the same as a winning one.
   Only 1.26% of self-play positions have ≤5 pieces, so this is low priority.
 
+### Where more data stopped paying
+
+| Training positions | Result |
+|---|---|
+| 2.5M → 11.2M | +67 Elo |
+| 11.2M → 24.3M | +117 Elo |
+| **24.3M → 36.4M** | **±0 — three checkpoints, none beat the 24.3M net** |
+
+The 36.4M run reached the best validation loss of any net here (0.0275 against
+0.0301) and its checkpoints measured −111, −3 and −7 Elo against the champion.
+More data has stopped buying strength at this network size, which points at
+capacity rather than data as the next constraint — a wider layer or more
+feature buckets.
+
+That is also the third time on this project validation loss pointed the wrong
+way, so the conclusion above is stated from the games, not the loss curve.
+
 ### Where the next gain is
 
 Learning curves, comparing 11.2M against 24.3M training positions:
