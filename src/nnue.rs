@@ -9,25 +9,26 @@ use crate::eval::Score;
 use crate::types::*;
 
 pub const INPUT: usize = 768;   // 64 squares x 6 piece types x 2 colors
-pub const HIDDEN: usize = 1024;
+pub const HIDDEN: usize = 1536;
 // King buckets: a piece's value depends on where our king sits, so each king
 // region gets its own weight set. Indexed by the perspective's own king.
-pub const BUCKETS: usize = 4;
+pub const BUCKETS: usize = 8;
 pub const FT_SIZE: usize = INPUT * BUCKETS;
 
 // Maps a king square (from that side's perspective) to a bucket:
-//   0 = queenside castled, 1 = centre-queenside,
-//   2 = centre-kingside,   3 = kingside castled
+// Eight buckets: four files x two ranks (own half vs advanced). A king on the
+// back rank and one that has walked up the board want different weights, and
+// four buckets could not express that.
 #[rustfmt::skip]
 pub const KING_BUCKET: [usize; 64] = [
     0, 0, 1, 1, 2, 2, 3, 3,
     0, 0, 1, 1, 2, 2, 3, 3,
     0, 0, 1, 1, 2, 2, 3, 3,
     0, 0, 1, 1, 2, 2, 3, 3,
-    0, 0, 1, 1, 2, 2, 3, 3,
-    0, 0, 1, 1, 2, 2, 3, 3,
-    0, 0, 1, 1, 2, 2, 3, 3,
-    0, 0, 1, 1, 2, 2, 3, 3,
+    4, 4, 5, 5, 6, 6, 7, 7,
+    4, 4, 5, 5, 6, 6, 7, 7,
+    4, 4, 5, 5, 6, 6, 7, 7,
+    4, 4, 5, 5, 6, 6, 7, 7,
 ];
 
 // Fixed-point scaling. Weights are quantized to i16 so the accumulator can be

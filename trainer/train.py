@@ -10,15 +10,14 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 
-INPUT, HIDDEN = 768, 1024
-BUCKETS = 4                            # king buckets; must match src/nnue.rs
+INPUT, HIDDEN = 768, 1536
+BUCKETS = 8                            # king buckets; must match src/nnue.rs
 FT_SIZE = INPUT * BUCKETS
 QA, QB, SCALE = 255, 64, 400           # must match src/nnue.rs
 
 # King-square -> bucket, mirroring KING_BUCKET in src/nnue.rs.
-KING_BUCKET = [
-    0, 0, 1, 1, 2, 2, 3, 3,
-] * 8
+# Four files x two ranks, mirroring KING_BUCKET in src/nnue.rs.
+KING_BUCKET = [0, 0, 1, 1, 2, 2, 3, 3] * 4 + [4, 4, 5, 5, 6, 6, 7, 7] * 4
 
 PIECE_IDX = {'p':0,'n':1,'b':2,'r':3,'q':4,'k':5}
 
