@@ -8,6 +8,7 @@ mod search;
 mod uci;
 mod server;
 mod nnue;
+mod book;
 mod datagen;
 mod match_play;
 

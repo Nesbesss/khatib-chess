@@ -10,6 +10,11 @@ use std::time::Duration;
 pub fn run() {
     let mut board = Board::startpos();
     let mut searcher = ThreadedSearcher::new(64, 1);
+    let mut use_book = true;
+    // Rotates through equally-good book replies so games are not identical.
+    let mut book_pick: usize = (std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos() as usize).unwrap_or(0)) % 997;
     let stdin = io::stdin();
 
     for line in stdin.lock().lines() {
@@ -23,6 +28,7 @@ pub fn run() {
                 println!("id author nesbes");
                 println!("option name Hash type spin default 64 min 1 max 4096");
                 println!("option name Threads type spin default 1 min 1 max 64");
+                println!("option name OwnBook type check default true");
                 println!("uciok");
             }
             "isready" => println!("readyok"),
@@ -42,12 +48,24 @@ pub fn run() {
                             searcher = ThreadedSearcher::new(mb, n);
                         }
                         (Some(&"Threads"), Some(n)) => searcher.set_threads(n),
+                        (Some(&"OwnBook"), _) => {
+                            use_book = tokens.last() == Some(&"true");
+                        }
                         _ => {}
                     }
                 }
             }
             "position" => set_position(&mut board, &mut searcher, &tokens),
             "go" => {
+                if use_book {
+                    if let Some(mv) = crate::book::book().probe(&board, book_pick) {
+                        book_pick += 1;
+                        println!("info string book move");
+                        println!("bestmove {}", mv.to_uci());
+                        io::stdout().flush().ok();
+                        continue;
+                    }
+                }
                 let limits = parse_go(&tokens, board.side);
                 let (best, _) = searcher.search(&board, limits, true);
                 println!("bestmove {}", best.to_uci());
