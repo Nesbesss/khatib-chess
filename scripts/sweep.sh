@@ -65,12 +65,28 @@ train_and_eval 50 0.9 1e-3
 train_and_eval 80 0.8 1e-3
 train_and_eval 30 1.0 7e-4
 
-if [ -n "$BEST_NET" ] && [ "$BEST_ELO" -gt 0 ] 2>/dev/null; then
+# Promotion requires a DIRECT head-to-head against the net currently in use.
+# Comparing candidates against a third party (the champion) adds that
+# opponent's variance to both sides, and two such measurements disagreed by
+# 70 Elo on this project — enough to promote the wrong net.
+if [ -n "$BEST_NET" ] && [ -f net.nnue ]; then
+  say "head-to-head: $BEST_NET vs the net in use"
+  HH=$(python3 scripts/duel_two_nets.py "$BEST_NET" net.nnue \
+       --games 150 --nodes 8000 2>&1 | grep "^Elo")
+  say "  $HH"
+  HELO=$(echo "$HH" | grep -oE '[-+][0-9]+' | head -1)
+  HERR=$(echo "$HH" | grep -oE '\+/-[0-9]+' | grep -oE '[0-9]+')
+  # Require the interval to exclude zero, not just a positive point estimate.
+  if [ -n "$HELO" ] && [ -n "$HERR" ] && [ $((HELO - HERR)) -gt 0 ] 2>/dev/null; then
+    cp "$BEST_NET" net.nnue
+    say "PROMOTED $BEST_NET (${HELO} +/-${HERR} Elo head-to-head)"
+  else
+    say "not promoted: ${HELO} +/-${HERR} does not clearly beat the current net"
+  fi
+elif [ -n "$BEST_NET" ]; then
   cp "$BEST_NET" net.nnue
-  say "PROMOTED $BEST_NET (+${BEST_ELO} Elo vs v1) -> net.nnue"
-  say "confirming over 400 games"
-  python3 scripts/duel_nets.py net.nnue --games 200 --nodes 8000 2>&1 | tail -3 | tee -a $LOG
+  say "PROMOTED $BEST_NET (no incumbent to compare against)"
 else
-  say "nothing beat the v1 champion (best ${BEST_ELO}); net.nnue unchanged"
+  say "no candidate produced"
 fi
 say "FINISHED"
