@@ -53,9 +53,30 @@ def train(epochs: int, batch: int, lr: float, lam: float,
     return sorted(nets)
 
 
+@app.function(image=image, volumes={"/data": vol}, timeout=60 * 30)
+def volume_status() -> dict:
+    """What the volume already holds, so we can skip a redundant upload."""
+    import os
+    out = {}
+    for name in ("train.txt",):
+        p = f"/data/{name}"
+        out[name] = os.path.getsize(p) if os.path.exists(p) else 0
+    return out
+
+
 @app.local_entrypoint()
 def main(epochs: int = 45, batch: int = 16384, lr: float = 1e-3,
-         lam: float = 0.9, checkpoint_every: int = 15, tag: str = "v4"):
+         lam: float = 0.9, checkpoint_every: int = 15, tag: str = "v4",
+         min_bytes: int = 1_000_000_000):
+    # Refuse to start on a truncated dataset: a partial upload once trained on
+    # 0.7% of the data without complaining.
+    have = volume_status.remote().get("train.txt", 0)
+    print(f"volume holds train.txt: {have/1e6:.0f} MB")
+    if have < min_bytes:
+        raise SystemExit(
+            f"dataset in the volume is only {have/1e6:.0f} MB — upload it first "
+            "with modal_train.py (laptop must stay awake for that step)")
+
     # spawn() returns immediately; the work continues on Modal.
     call = train.spawn(epochs, batch, lr, lam, checkpoint_every, tag)
     print(f"detached training started: {call.object_id}")
