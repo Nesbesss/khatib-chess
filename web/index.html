@@ -109,12 +109,14 @@
     <button id="play">Engine move</button>
     <button id="undo">Undo</button>
     <button id="reset">Reset</button>
-    <select id="ms">
-      <option value="500">0.5s</option>
-      <option value="1000">1s</option>
-      <option value="2000" selected>2s</option>
-      <option value="5000">5s</option>
-      <option value="10000">10s</option>
+    <select id="level" title="Engine strength">
+      <option value="d1">Beginner (depth 1)</option>
+      <option value="d2">Easy (depth 2)</option>
+      <option value="d4">Casual (depth 4)</option>
+      <option value="d6">Club (depth 6)</option>
+      <option value="d8">Strong (depth 8)</option>
+      <option value="2000" selected>Full strength (2s)</option>
+      <option value="10000">Maximum (10s)</option>
     </select>
   </div>
   <div class="stats">
@@ -348,7 +350,10 @@ function analyze(thenPlay) {
   $('depths').innerHTML = '';
   if (es) es.close();
 
-  es = new EventSource('/analyze?fen=' + encodeURIComponent(fen) + '&ms=' + $('ms').value);
+  // A level of "dN" limits search depth; anything else is a time budget.
+  const lvl = $('level').value;
+  const param = lvl.startsWith('d') ? 'depth=' + lvl.slice(1) : 'ms=' + lvl;
+  es = new EventSource('/analyze?fen=' + encodeURIComponent(fen) + '&' + param);
 
   es.onmessage = e => {
     const d = JSON.parse(e.data);

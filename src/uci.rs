@@ -57,6 +57,14 @@ pub fn run() {
             // Non-standard helpers.
             "d" | "print" => println!("{}\n{}", render(&board), board.to_fen()),
             "eval" => println!("{}", crate::eval::evaluate(&board)),
+            // Non-standard: list legal moves, so a GUI does not need its own
+            // rules implementation.
+            "legal" => {
+                let list = generate(&board, GenMode::All);
+                let moves: Vec<String> = (0..list.len)
+                    .map(|i| list[i].to_uci()).collect();
+                println!("legal {}", moves.join(" "));
+            }
             // Non-standard: report terminal state so a match runner can
             // detect checkmate and draws without reimplementing the rules.
             "status" => {

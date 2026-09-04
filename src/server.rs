@@ -168,6 +168,9 @@ fn game_status(board: &Board, legal_count: usize) -> &'static str {
 // Run a search, streaming each completed depth to the browser as it lands.
 fn stream_analysis(stream: &mut TcpStream, query: &str) {
     let fen = param(query, "fen").unwrap_or_else(|| crate::board::START_FEN.to_string());
+    // Either a depth cap (weaker, for playing against a human) or a time
+    // budget (full strength).
+    let depth: Option<u32> = param(query, "depth").and_then(|s| s.parse().ok());
     let movetime: u64 = param(query, "ms").and_then(|s| s.parse().ok()).unwrap_or(2000);
 
     let headers = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\
@@ -187,9 +190,12 @@ fn stream_analysis(stream: &mut TcpStream, query: &str) {
     let (tx, rx) = mpsc::channel::<String>();
     let handle = std::thread::spawn(move || {
         let mut searcher = Searcher::new(64);
-        let limits = SearchLimits {
-            movetime: Some(Duration::from_millis(movetime)),
-            ..Default::default()
+        let limits = match depth {
+            Some(d) => SearchLimits { depth: d, ..Default::default() },
+            None => SearchLimits {
+                movetime: Some(Duration::from_millis(movetime)),
+                ..Default::default()
+            },
         };
         let result = searcher.search_with_callback(&mut board, limits, |info| {
             let _ = tx.send(info);
