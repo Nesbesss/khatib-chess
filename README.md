@@ -73,6 +73,16 @@ SSE server. Shows the board with the engine's intended move, a live eval bar,
 each completed depth, and a search tree of the candidate moves ranked by
 score, with refuted branches dimmed and the principal variation as a chain.
 
+## Current state
+
+`net.nnue` is NNUE v3: **+179 Elo** over the handcrafted evaluation, trained on
+24.3M Stockfish-labelled positions. All training data and every candidate
+network are kept locally under `data/` and `nets/`.
+
+Cloud training is paused — the Modal workspace hit its spend limit. Everything
+below still works locally (slower); raising the limit resumes the cloud path
+unchanged.
+
 ## Training a network
 
 ```bash
