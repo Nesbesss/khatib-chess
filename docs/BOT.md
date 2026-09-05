@@ -16,18 +16,19 @@ python3 scripts/lichess_bot.py --upgrade
 
 ## Telegram notifications (optional)
 
-Get a token from [@BotFather](https://t.me/BotFather), message your new bot
-once, then:
+Anyone can follow the bot's games — no chat id to configure. Get a token from
+[@BotFather](https://t.me/BotFather) and save it:
 
 ```bash
 echo "<bot-token>" > .telegram_token
-curl -s "https://api.telegram.org/bot<bot-token>/getUpdates" \
-  | grep -o '"chat":{"id":[0-9-]*' | head -1     # your chat id
-echo "<chat-id>"   > .telegram_chat
 ```
 
-You get a message when each game starts and ends, with a link to watch it.
-Both files are gitignored; never commit them.
+Then anyone who sends your Telegram bot `/start` is subscribed and gets a link
+for every game Khatib plays, win or lose. `/stop` unsubscribes. Subscribers are
+kept in `.telegram_subs`.
+
+The token file is gitignored; never commit it. If a token leaks, revoke it with
+`/revoke` in @BotFather.
 
 ## Run it
 

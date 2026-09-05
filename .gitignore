@@ -32,3 +32,4 @@ wasm/pkg/
 .telegram_chat
 
 logs/
+.telegram_subs

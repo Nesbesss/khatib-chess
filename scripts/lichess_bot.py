@@ -23,30 +23,87 @@ import argparse, json, os, random, subprocess, sys, threading, time
 import requests
 
 TG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TG_SUBS = os.path.join(TG_DIR, ".telegram_subs")
 
 
-def _tg_creds():
-    """Bot token and chat id from .telegram_token / .telegram_chat, or None."""
+def _tg_token():
     try:
-        tok = open(os.path.join(TG_DIR, ".telegram_token")).read().strip()
-        chat = open(os.path.join(TG_DIR, ".telegram_chat")).read().strip()
-        return (tok, chat) if tok and chat else None
+        t = open(os.path.join(TG_DIR, ".telegram_token")).read().strip()
+        return t or None
     except OSError:
         return None
 
 
-def notify(text):
-    """Best-effort Telegram message; never let it break a game."""
-    creds = _tg_creds()
-    if not creds:
+def _tg_chats():
+    """Everyone subscribed, one chat id per line."""
+    try:
+        return [l.strip() for l in open(TG_SUBS) if l.strip()]
+    except OSError:
+        return []
+
+
+def tg_add_chat(chat_id):
+    """Subscribe a chat; returns True if it is new."""
+    chat_id = str(chat_id)
+    if chat_id in _tg_chats():
+        return False
+    with open(TG_SUBS, "a") as f:
+        f.write(chat_id + "\n")
+    return True
+
+
+def tg_send(chat_id, text):
+    tok = _tg_token()
+    if not tok:
         return
-    tok, chat = creds
     try:
         requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
-                      data={"chat_id": chat, "text": text,
-                            "disable_web_page_preview": "false"}, timeout=10)
+                      data={"chat_id": chat_id, "text": text}, timeout=10)
     except Exception as e:
-        print(f"telegram failed: {e}")
+        print(f"telegram send failed: {e}")
+
+
+def notify(text):
+    """Broadcast to every subscriber; never let it break a game."""
+    for chat in _tg_chats():
+        tg_send(chat, text)
+
+
+def telegram_listener():
+    """Let anyone subscribe by messaging the bot /start.
+
+    Runs in its own thread; long-polls Telegram and never raises out.
+    """
+    tok = _tg_token()
+    if not tok:
+        return
+    offset = None
+    while True:
+        try:
+            r = requests.get(f"https://api.telegram.org/bot{tok}/getUpdates",
+                             params={"timeout": 50, "offset": offset},
+                             timeout=60)
+            for up in r.json().get("result", []):
+                offset = up["update_id"] + 1
+                msg = up.get("message") or {}
+                chat = str((msg.get("chat") or {}).get("id", ""))
+                text = (msg.get("text") or "").strip().lower()
+                if not chat:
+                    continue
+                if text.startswith("/stop"):
+                    subs = [c for c in _tg_chats() if c != chat]
+                    open(TG_SUBS, "w").write("".join(c + "\n" for c in subs))
+                    tg_send(chat, "Unsubscribed. Send /start to get alerts again.")
+                elif text.startswith("/start") or text.startswith("/sub"):
+                    fresh = tg_add_chat(chat)
+                    tg_send(chat, "Subscribed to Khatib." if fresh
+                            else "Already subscribed.")
+                    tg_send(chat, "You will get a link for every game it plays.\n"
+                                  "Play it yourself: lichess.org/@/nesbes\n"
+                                  "Source: github.com/Nesbesss/khatib-chess\n"
+                                  "/stop to unsubscribe.")
+        except Exception:
+            time.sleep(10)
 
 
 API = "https://lichess.org/api"
@@ -239,6 +296,10 @@ class Bot:
     def run(self, seek_tc=None, rated=False):
         print(f"listening as {self.username} — challenge it at "
               f"lichess.org/@/{self.username}")
+        if _tg_token():
+            threading.Thread(target=telegram_listener, daemon=True).start()
+            print(f"telegram: on ({len(_tg_chats())} subscribed) — "
+                  "anyone can /start the bot to follow games")
         if seek_tc:
             mins, inc = seek_tc
             print(f"seeking {mins}+{inc} games "
