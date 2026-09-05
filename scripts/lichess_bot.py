@@ -120,7 +120,16 @@ class Engine:
         self.p = subprocess.Popen(args, stdin=subprocess.PIPE,
                                   stdout=subprocess.PIPE, text=True, bufsize=1)
         self._wait("uci", "uciok")
+        threads = os.environ.get("ENGINE_THREADS")
+        hash_mb = os.environ.get("ENGINE_HASH")
+        if threads:
+            self._send(f"setoption name Threads value {threads}")
+        if hash_mb:
+            self._send(f"setoption name Hash value {hash_mb}")
         self._wait("isready", "readyok")
+
+    def _send(self, cmd):
+        self.p.stdin.write(cmd + "\n"); self.p.stdin.flush()
 
     def _wait(self, cmd, token):
         self.p.stdin.write(cmd + "\n"); self.p.stdin.flush()
