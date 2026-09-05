@@ -23,3 +23,6 @@ wasm/pkg/
 
 .DS_Store
 *.lrn
+
+# Lichess bot token — never commit.
+.lichess_token

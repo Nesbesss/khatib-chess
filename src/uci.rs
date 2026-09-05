@@ -188,10 +188,16 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
         // computed; scale it with the clock so blitz stays safe.
         let overhead = (t / 50).clamp(20, 300);
         let usable = t.saturating_sub(overhead);
-        // Soft target: the share of the clock this move deserves.
-        let soft = (usable / moves_to_go + inc * 3 / 4).max(5);
-        // Hard cap: never spend more than a fifth of what's left on one move.
-        let hard = (usable / 4).max(soft).min(usable);
+        // Soft target: the share of the clock this move deserves. Assume more
+        // moves remain than the classical 30 -- a game that goes long is
+        // exactly the game where flagging is the real risk -- and bank only
+        // part of the increment so the clock is not spent faster than it is
+        // replenished.
+        let soft = (usable / moves_to_go.max(40) + inc / 2).max(5);
+        // Hard cap: one move never takes more than a tenth of what is left,
+        // and never more than twice the soft target -- a deep iteration cannot
+        // be cut mid-way, so the soft limit alone overshoots by well over half.
+        let hard = (usable / 10).min(soft * 2).max(soft).min(usable);
         limits.soft_time = Some(Duration::from_millis(soft));
         limits.movetime = Some(Duration::from_millis(hard));
     }
