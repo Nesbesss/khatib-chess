@@ -197,9 +197,21 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
         // Hard cap: one move never takes more than a tenth of what is left,
         // and never more than twice the soft target -- a deep iteration cannot
         // be cut mid-way, so the soft limit alone overshoots by well over half.
-        let hard = (usable / 10).min(soft * 2).max(soft).min(usable);
-        limits.soft_time = Some(Duration::from_millis(soft));
-        limits.movetime = Some(Duration::from_millis(hard));
+        let mut hard = (usable / 10).min(soft * 2).max(soft).min(usable);
+        // Panic mode: once the clock is low, spend only the increment. A long
+        // game is where flagging happens, and against a bot a fast sound move
+        // beats a slow perfect one that loses on time. With any increment the
+        // clock then holds steady instead of bleeding out.
+        if t < 30_000 {
+            let cap = if inc > 0 { inc.saturating_sub(inc / 5).max(50) }
+                      else { (usable / 20).max(50) };
+            hard = hard.min(cap);
+        }
+        // Global per-move cap: fast games, and depth past here buys little.
+        let move_cap = std::env::var("MOVE_CAP_MS").ok()
+            .and_then(|v| v.parse().ok()).unwrap_or(4000);
+        limits.soft_time = Some(Duration::from_millis(soft.min(move_cap)));
+        limits.movetime = Some(Duration::from_millis(hard.min(move_cap)));
     }
     if tokens.contains(&"infinite") {
         limits.movetime = None;
