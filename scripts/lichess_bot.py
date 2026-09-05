@@ -277,13 +277,14 @@ class Bot:
             if self.playing:
                 time.sleep(5)
                 continue
-            bots = self.online_bots()
+            bots = self.online_bots(limit=90)
             random.shuffle(bots)
             if not bots:
-                time.sleep(30)
+                time.sleep(20)
                 continue
-            for name in bots[:5]:
-                if self.playing:
+            sent = 0
+            for name in bots:
+                if self.playing or sent >= 8:
                     break
                 try:
                     r = self.s.post(f"{API}/challenge/{name}", data={
@@ -293,14 +294,20 @@ class Bot:
                     }, timeout=15)
                     if r.status_code in (200, 201):
                         print(f"challenged {name}")
-                        time.sleep(25)      # give them a chance to accept
+                        sent += 1
+                        time.sleep(3)       # brief spacing, do not block
                     elif r.status_code == 429:
                         print("rate limited; pausing 10 min")
                         time.sleep(600)
                         break
                 except Exception:
                     pass
-                time.sleep(5)
+            # Let the outstanding challenges sit briefly; a gameStart cancels
+            # the wait by flipping self.playing.
+            for _ in range(8):
+                if self.playing:
+                    break
+                time.sleep(2)
 
     def run(self, seek_tc=None, rated=False):
         print(f"listening as {self.username} — challenge it at "
