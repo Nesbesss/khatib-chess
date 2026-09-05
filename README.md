@@ -43,8 +43,12 @@ challenge:
 # 1. Make a fresh Lichess account (bot accounts must never have played a game)
 # 2. Create a token at lichess.org/account/oauth/token/create with "bot:play"
 LICHESS_TOKEN=<your-token> python3 scripts/lichess_bot.py --upgrade   # once
-LICHESS_TOKEN=<your-token> python3 scripts/lichess_bot.py             # run it
+LICHESS_TOKEN=<your-token> python3 scripts/lichess_bot.py --seek 5+3  # play
 ```
+
+`--seek 5+3` queues for 5+3 games so real players get matched with it from the
+pool; without it the bot only waits to be challenged at
+`lichess.org/@/<your-bot>`. Add `--rated` to earn a real public rating.
 
 **On chess.com** — you can't. Chess.com has no engine-connection feature and
 their terms prohibit engine assistance in games. Use Lichess, which supports

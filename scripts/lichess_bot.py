@@ -10,6 +10,9 @@ Setup (once):
   3. LICHESS_TOKEN=<token> python3 scripts/lichess_bot.py --upgrade
   4. LICHESS_TOKEN=<token> python3 scripts/lichess_bot.py
 
+Add --seek 5+3 to queue for games instead of only waiting to be challenged;
+real players are matched from the pool. Add --rated to play rated games.
+
 The upgrade is irreversible, which is why the account must be new.
 """
 import argparse, os, subprocess, sys, threading, time
@@ -66,6 +69,9 @@ class Bot:
         me = self.s.get(f"{API}/account").json()
         self.username = me.get("username", "?")
         self.is_bot = me.get("title") == "BOT"
+        # Lichess allows a bot only one game at a time by default, so the
+        # seek loop waits while a game is live.
+        self.playing = False
 
     def upgrade(self):
         r = self.s.post(f"{API}/bot/account/upgrade")
@@ -135,24 +141,67 @@ class Bot:
         finally:
             eng.quit()
 
-    def run(self):
+    def seek(self, minutes: int, inc: int, rated: bool):
+        """Enter the pool so real players get matched with us.
+
+        The seek endpoint blocks until someone accepts or it times out, so it
+        runs on its own thread and simply re-seeks when it returns.
+        """
+        while True:
+            if self.playing:
+                time.sleep(5)
+                continue
+            try:
+                # Blocks for up to ~20s server-side; a match ends it early.
+                self.s.post(f"{API}/board/seek", data={
+                    "time": minutes, "increment": inc,
+                    "rated": "true" if rated else "false",
+                    "variant": "standard",
+                }, timeout=40)
+            except Exception:
+                time.sleep(5)
+
+    def run(self, seek_tc=None, rated=False):
         print(f"listening as {self.username} — challenge it at "
               f"lichess.org/@/{self.username}")
+        if seek_tc:
+            mins, inc = seek_tc
+            print(f"seeking {mins}+{inc} games "
+                  f"({'rated' if rated else 'casual'}) against real players")
+            threading.Thread(target=self.seek, args=(mins, inc, rated),
+                             daemon=True).start()
         for ev in self.stream_events():
             t = ev.get("type")
             if t == "challenge":
                 self.handle_challenge(ev["challenge"])
             elif t == "gameStart":
                 gid = ev["game"]["id"]
+                self.playing = True
                 threading.Thread(target=self.play, args=(gid,),
                                  daemon=True).start()
+            elif t == "gameFinish":
+                self.playing = False
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--upgrade", action="store_true",
                     help="convert the account to a BOT (irreversible)")
+    ap.add_argument("--seek", metavar="MIN+INC",
+                    help="also queue for games against real players, "
+                         "e.g. --seek 5+3")
+    ap.add_argument("--rated", action="store_true",
+                    help="play rated games when seeking (default casual)")
     a = ap.parse_args()
+
+    seek_tc = None
+    if a.seek:
+        try:
+            mins, inc = a.seek.split("+")
+            seek_tc = (int(mins), int(inc))
+        except ValueError:
+            print(f"--seek wants MIN+INC, e.g. 5+3 (got {a.seek!r})")
+            sys.exit(1)
 
     token = os.environ.get("LICHESS_TOKEN")
     if not token:
@@ -169,7 +218,7 @@ def main():
         sys.exit(1)
     while True:
         try:
-            bot.run()
+            bot.run(seek_tc, a.rated)
         except Exception as e:
             print(f"stream dropped ({e}); reconnecting in 5s")
             time.sleep(5)
