@@ -26,3 +26,9 @@ wasm/pkg/
 
 # Lichess bot token — never commit.
 .lichess_token
+
+# Telegram bot token — never commit.
+.telegram_token
+.telegram_chat
+
+logs/

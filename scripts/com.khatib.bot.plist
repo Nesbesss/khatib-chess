@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.khatib.bot</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>REPO/scripts/run_bot_forever.sh</string>
+  </array>
+  <key>WorkingDirectory</key><string>REPO</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>RATED</key><string>1</string>
+    <key>TC</key><string>5+3</string>
+  </dict>
+  <!-- Start at login and restart if it ever exits. -->
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>StandardOutPath</key><string>REPO/logs/launchd.out</string>
+  <key>StandardErrorPath</key><string>REPO/logs/launchd.err</string>
+</dict>
+</plist>

@@ -22,6 +22,33 @@ import argparse, json, os, random, subprocess, sys, threading, time
 
 import requests
 
+TG_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _tg_creds():
+    """Bot token and chat id from .telegram_token / .telegram_chat, or None."""
+    try:
+        tok = open(os.path.join(TG_DIR, ".telegram_token")).read().strip()
+        chat = open(os.path.join(TG_DIR, ".telegram_chat")).read().strip()
+        return (tok, chat) if tok and chat else None
+    except OSError:
+        return None
+
+
+def notify(text):
+    """Best-effort Telegram message; never let it break a game."""
+    creds = _tg_creds()
+    if not creds:
+        return
+    tok, chat = creds
+    try:
+        requests.post(f"https://api.telegram.org/bot{tok}/sendMessage",
+                      data={"chat_id": chat, "text": text,
+                            "disable_web_page_preview": "false"}, timeout=10)
+    except Exception as e:
+        print(f"telegram failed: {e}")
+
+
 API = "https://lichess.org/api"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE = os.path.join(ROOT, "target/release/chess")
@@ -112,6 +139,7 @@ class Bot:
         eng = Engine()
         my_color = None
         print(f"game {game_id} started")
+        notify(f"\u265e Game started\nhttps://lichess.org/{game_id}")
         try:
             with self.s.get(f"{API}/bot/game/stream/{game_id}", stream=True) as r:
                 for line in r.iter_lines():
@@ -129,8 +157,16 @@ class Bot:
                         continue
 
                     if state.get("status") not in ("started", "created"):
-                        print(f"game {game_id} over: {state.get('status')} "
-                              f"{state.get('winner', '')}")
+                        status = state.get("status")
+                        winner = state.get("winner", "")
+                        print(f"game {game_id} over: {status} {winner}")
+                        if not winner:
+                            head = f"\u00bd Draw ({status})"
+                        elif winner == my_color:
+                            head = f"\u2705 WON by {status}"
+                        else:
+                            head = f"\u274c Lost by {status}"
+                        notify(f"{head}\nhttps://lichess.org/{game_id}")
                         return
 
                     moves = state.get("moves", "")
