@@ -10,12 +10,15 @@ Setup (once):
   3. LICHESS_TOKEN=<token> python3 scripts/lichess_bot.py --upgrade
   4. LICHESS_TOKEN=<token> python3 scripts/lichess_bot.py
 
-Add --seek 5+3 to queue for games instead of only waiting to be challenged;
-real players are matched from the pool. Add --rated to play rated games.
+By default the bot waits to be challenged at lichess.org/@/<name> -- this is
+how humans play it, since Lichess has no seek pool for BOT accounts.
+
+Add --seek 5+3 to also challenge other online bots so it keeps playing while
+nobody is around. Add --rated for rated games.
 
 The upgrade is irreversible, which is why the account must be new.
 """
-import argparse, os, subprocess, sys, threading, time
+import argparse, json, os, random, subprocess, sys, threading, time
 
 import requests
 
@@ -97,6 +100,10 @@ class Bot:
                         data={"reason": "standard"})
             print(f"declined {cid} ({variant}/{speed})")
             return
+        # Our own outgoing challenges arrive on this stream too; accepting
+        # one is a 404 no-op, so skip them.
+        if ch.get("challenger", {}).get("id", "").lower() == self.username.lower():
+            return
         r = self.s.post(f"{API}/challenge/{cid}/accept")
         print(f"accepted challenge {cid} from "
               f"{ch.get('challenger', {}).get('name', '?')}: {r.status_code}")
@@ -141,24 +148,56 @@ class Bot:
         finally:
             eng.quit()
 
-    def seek(self, minutes: int, inc: int, rated: bool):
-        """Enter the pool so real players get matched with us.
+    def online_bots(self, limit=60):
+        """Bots currently online, as a list of usernames."""
+        try:
+            r = self.s.get(f"{API}/bot/online", params={"nb": limit},
+                           stream=True, timeout=20)
+            out = []
+            for line in r.iter_lines():
+                if not line:
+                    continue
+                u = json.loads(line).get("username")
+                if u and u.lower() != self.username.lower():
+                    out.append(u)
+            return out
+        except Exception:
+            return []
 
-        The seek endpoint blocks until someone accepts or it times out, so it
-        runs on its own thread and simply re-seeks when it returns.
+    def seek(self, minutes: int, inc: int, rated: bool):
+        """Keep a game going by challenging other online bots.
+
+        Lichess has no seek pool for BOT accounts -- board/seek is Board API
+        only and rejects a bot token -- so a bot either waits to be challenged
+        or challenges somebody itself.
         """
         while True:
             if self.playing:
                 time.sleep(5)
                 continue
-            try:
-                # Blocks for up to ~20s server-side; a match ends it early.
-                self.s.post(f"{API}/board/seek", data={
-                    "time": minutes, "increment": inc,
-                    "rated": "true" if rated else "false",
-                    "variant": "standard",
-                }, timeout=40)
-            except Exception:
+            bots = self.online_bots()
+            random.shuffle(bots)
+            if not bots:
+                time.sleep(30)
+                continue
+            for name in bots[:5]:
+                if self.playing:
+                    break
+                try:
+                    r = self.s.post(f"{API}/challenge/{name}", data={
+                        "clock.limit": minutes * 60, "clock.increment": inc,
+                        "rated": "true" if rated else "false",
+                        "variant": "standard", "color": "random",
+                    }, timeout=15)
+                    if r.status_code in (200, 201):
+                        print(f"challenged {name}")
+                        time.sleep(25)      # give them a chance to accept
+                    elif r.status_code == 429:
+                        print("rate limited; pausing 10 min")
+                        time.sleep(600)
+                        break
+                except Exception:
+                    pass
                 time.sleep(5)
 
     def run(self, seek_tc=None, rated=False):
