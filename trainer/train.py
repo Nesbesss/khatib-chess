@@ -391,7 +391,7 @@ def main():
         # gradient and no information. High values mean wasted capacity.
         with torch.no_grad():
             Wb, _Bb, _sb, _sc, _wd, _ob = next(iter(vdl))
-            acts = model.ft(Wb[0].to(dev), Wb[1].to(dev)) + model.ft_bias
+            acts = model._bag(Wb[0].to(dev), Wb[1].to(dev)) + model.ft_bias
             sat_lo = (acts < 0).float().mean().item()
             sat_hi = (acts > 1).float().mean().item()
         vtot, vnb = 0.0, 0
