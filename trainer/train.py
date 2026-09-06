@@ -86,7 +86,20 @@ class PositionSet(Dataset):
     def __init__(self, path, limit=None):
         self.stm, self.scores, self.wdls, self.obs = [], [], [], []
         self.w_off, self.b_off = [0], [0]
+        # Flush the growing index lists into numpy blocks as we go: a Python
+        # int costs ~28 bytes against 4 in an int32 array, so holding 60M
+        # positions as lists needs ~100 GB where the arrays need ~15.
+        w_blocks, b_blocks = [], []
         w_flat, b_flat = [], []
+        FLUSH = 20_000_000        # indices per block
+
+        def _flush():
+            if w_flat:
+                w_blocks.append(np.array(w_flat, dtype=np.int32)); w_flat.clear()
+            if b_flat:
+                b_blocks.append(np.array(b_flat, dtype=np.int32)); b_flat.clear()
+
+        w_seen = b_seen = 0
         t0 = time.time()
         with open(path) as f:
             for i, line in enumerate(f):
@@ -108,16 +121,23 @@ class PositionSet(Dataset):
                 w, b, stm = fen_to_features(fen.strip())
                 ob = output_bucket(fen.strip())
                 w_flat.extend(w); b_flat.extend(b)
-                self.w_off.append(len(w_flat))
-                self.b_off.append(len(b_flat))
+                w_seen += len(w); b_seen += len(b)
+                self.w_off.append(w_seen)
+                self.b_off.append(b_seen)
                 self.stm.append(stm)
                 self.scores.append(score)
                 self.wdls.append(wdl)
                 self.obs.append(ob)
+                if len(w_flat) >= FLUSH:
+                    _flush()
                 if (i + 1) % 1_000_000 == 0:
                     print(f"  loaded {i+1:,} in {time.time()-t0:.0f}s", flush=True)
-        self.w_flat = np.array(w_flat, dtype=np.int32)
-        self.b_flat = np.array(b_flat, dtype=np.int32)
+        _flush()
+        self.w_flat = (np.concatenate(w_blocks) if w_blocks
+                       else np.empty(0, dtype=np.int32))
+        self.b_flat = (np.concatenate(b_blocks) if b_blocks
+                       else np.empty(0, dtype=np.int32))
+        del w_blocks, b_blocks
         self.w_off = np.array(self.w_off, dtype=np.int64)
         self.b_off = np.array(self.b_off, dtype=np.int64)
         self.stm = np.array(self.stm, dtype=np.int8)
