@@ -10,7 +10,10 @@ cd "$(dirname "$0")/.."
 [ -f .lichess_token ] || { echo "missing .lichess_token"; exit 1; }
 export LICHESS_TOKEN="$(cat .lichess_token)"
 
-ARGS=(--seek "${TC:-5+3}")
+# SEEK=0 -> accept-only (never challenges, so never rate-limits itself).
+# SEEK=1 (default) -> also challenge bots to keep games flowing.
+ARGS=()
+[ "${SEEK:-1}" = "1" ] && ARGS+=(--seek "${TC:-5+3}")
 [ "${RATED:-0}" = "1" ] && ARGS+=(--rated)
 
 mkdir -p logs
