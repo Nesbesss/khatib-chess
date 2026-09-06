@@ -43,4 +43,13 @@ while true; do
   lines=$(wc -l < "$shard" 2>/dev/null | tr -d ' ')
   echo "[$(date '+%F %T')] shard $n done: $lines positions" >> logs/gen.log
   n=$((n+1))
+
+  # Stop before the disk fills: an always-on box should never be wedged by
+  # its own background job. MAX_GB caps the dataset (default 15 GB).
+  used=$(du -sm "$OUT" 2>/dev/null | cut -f1)
+  free=$(df -m . | tail -1 | awk '"'"'{print $4}'"'"')
+  if [ "${used:-0}" -ge "$(( ${MAX_GB:-15} * 1024 ))" ] || [ "${free:-99999}" -lt 8192 ]; then
+    echo "[$(date '+%F %T')] stopping: ${used}MB collected, ${free}MB free" >> logs/gen.log
+    exit 0
+  fi
 done
