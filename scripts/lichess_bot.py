@@ -302,9 +302,12 @@ class Bot:
                         "variant": "standard", "color": "random",
                     }, timeout=15)
                     if r.status_code == 429:
-                        print("rate limited; backing off 60s")
-                        time.sleep(60)
+                        self._rl = min(getattr(self, "_rl", 0) + 1, 6)
+                        wait = 60 * self._rl          # 1,2,...,6 minutes
+                        print(f"rate limited; backing off {wait}s")
+                        time.sleep(wait)
                         break
+                    self._rl = 0
                     if r.status_code in (200, 201):
                         print(f"challenged {name}")
                         # Wait up to ~20s for acceptance before trying another,
