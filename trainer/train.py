@@ -209,8 +209,12 @@ class NNUE(nn.Module):
         is done as a padded gather -- mathematically identical, just written
         with ops Metal implements.
         """
-        if idx.device.type != "mps":
+        # Guard on the weight's device: the failing kernel is chosen by where
+        # the parameters live, not where the index tensor came from.
+        if self.ft.weight.device.type != "mps":
             return self.ft(idx, offsets)
+        idx = idx.to(self.ft.weight.device)
+        offsets = offsets.to(self.ft.weight.device)
         n = offsets.shape[0]
         ends = torch.cat([offsets[1:],
                           torch.tensor([idx.shape[0]], device=idx.device)])
