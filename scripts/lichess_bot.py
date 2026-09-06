@@ -302,9 +302,12 @@ class Bot:
                         "variant": "standard", "color": "random",
                     }, timeout=15)
                     if r.status_code == 429:
-                        self._rl = min(getattr(self, "_rl", 0) + 1, 6)
-                        wait = 60 * self._rl          # 1,2,...,6 minutes
-                        print(f"rate limited; backing off {wait}s")
+                        self._rl = getattr(self, "_rl", 0) + 1
+                        # Escalate, then go fully quiet for 30 min so a stuck
+                        # challenge penalty can expire instead of being kept
+                        # alive by repeated pokes.
+                        wait = 1800 if self._rl >= 5 else 60 * self._rl
+                        print(f"rate limited (x{self._rl}); challenges paused {wait}s")
                         time.sleep(wait)
                         break
                     self._rl = 0
