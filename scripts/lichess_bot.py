@@ -165,9 +165,12 @@ class Bot:
         me = self.s.get(f"{API}/account").json()
         self.username = me.get("username", "?")
         self.is_bot = me.get("title") == "BOT"
-        # Lichess allows a bot only one game at a time by default, so the
-        # seek loop waits while a game is live.
-        self.playing = False
+        # Number of games in progress, and the most we will run at once.
+        # Concurrent games split the CPU, so each plays weaker -- costly
+        # against strong opponents. MAX_GAMES tunes the trade-off.
+        self.active = 0
+        self.max_games = int(os.environ.get("MAX_GAMES", "1"))
+        self.lock = threading.Lock()
 
     def upgrade(self):
         r = self.s.post(f"{API}/bot/account/upgrade")
@@ -196,6 +199,10 @@ class Bot:
         # Our own outgoing challenges arrive on this stream too; accepting
         # one is a 404 no-op, so skip them.
         if ch.get("challenger", {}).get("id", "").lower() == self.username.lower():
+            return
+        if self.active >= self.max_games:
+            self.s.post(f"{API}/challenge/{cid}/decline", data={"reason": "later"})
+            print(f"declined {cid}: at capacity ({self.active}/{self.max_games})")
             return
         r = self.s.post(f"{API}/challenge/{cid}/accept")
         print(f"accepted challenge {cid} from "
@@ -274,7 +281,7 @@ class Bot:
         or challenges somebody itself.
         """
         while True:
-            if self.playing:
+            if self.active >= self.max_games:
                 time.sleep(5)
                 continue
             bots = self.online_bots(limit=90)
@@ -284,7 +291,7 @@ class Bot:
                 continue
             sent = 0
             for name in bots:
-                if self.playing or sent >= 8:
+                if self.active >= self.max_games or sent >= 8:
                     break
                 try:
                     r = self.s.post(f"{API}/challenge/{name}", data={
@@ -305,7 +312,7 @@ class Bot:
             # Let the outstanding challenges sit briefly; a gameStart cancels
             # the wait by flipping self.playing.
             for _ in range(8):
-                if self.playing:
+                if self.active >= self.max_games:
                     break
                 time.sleep(2)
 
@@ -328,11 +335,13 @@ class Bot:
                 self.handle_challenge(ev["challenge"])
             elif t == "gameStart":
                 gid = ev["game"]["id"]
-                self.playing = True
+                with self.lock:
+                    self.active += 1
                 threading.Thread(target=self.play, args=(gid,),
                                  daemon=True).start()
             elif t == "gameFinish":
-                self.playing = False
+                with self.lock:
+                    self.active = max(0, self.active - 1)
 
 
 def main():
