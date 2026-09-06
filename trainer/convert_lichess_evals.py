@@ -61,10 +61,19 @@ def main():
                         continue
                 except Exception:
                     continue
+                # Lichess stores every score from White's point of view, but
+                # the trainer feeds accumulators as [side-to-move, opponent]
+                # and reads the score the same way. Without this flip, every
+                # black-to-move label carries the wrong sign -- about half the
+                # dataset teaching the opposite of the truth.
+                if " b " in fen:
+                    cp = -cp
                 # The DB omits halfmove/fullmove counters; our parser wants them.
                 if fen.count(" ") == 3:
                     fen += " 0 1"
-                out.write(f"{fen} | {cp} | {wdl_from_cp(cp):.3f}\n")
+                # These are engine evaluations, not game results: mark the
+                # outcome unknown rather than inventing one from the score.
+                out.write(f"{fen} | {cp}\n")
                 kept += 1
                 if kept % 500000 == 0:
                     print(f"  {kept:,} kept / {seen:,} seen", flush=True)

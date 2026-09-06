@@ -133,14 +133,12 @@ def main():
     openings = load_openings(a.games)
     w = l = d = 0
     for g in range(a.games):
-        # Random opening, played by both colour assignments for fairness.
-        opening = []
+        # One book line per game pair, played with both colour assignments.
+        # This used to generate the opening with a 1-node search, which is
+        # deterministic: every game began from the same position, so an
+        # N-game match was really one game repeated.
         ref.newgame()
-        for _ in range(a.openings):
-            mv = ref.best(opening, 1)
-            if not mv:
-                break
-            opening.append(mv)
+        opening = list(openings[g % len(openings)])
 
         for new_is_white in (True, False):
             e1, e2 = Engine(a.new), Engine(a.old)
