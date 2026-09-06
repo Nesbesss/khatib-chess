@@ -366,6 +366,8 @@ def main():
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--checkpoint-every', type=int, default=0,
                     help='also export a net every N epochs, for game testing')
+    ap.add_argument('--resume-state', default='',
+                    help='path for full train state; resumes if it exists')
     ap.add_argument('--lambda', dest='lam', type=float, default=0.7,
                     help='1.0 = pure search score, 0.0 = pure game result')
     a = ap.parse_args()
@@ -391,7 +393,18 @@ def main():
         opt, max_lr=a.lr, total_steps=a.epochs * max(1, len(dl)))
 
     best_val = float('inf')
-    for ep in range(a.epochs):
+    start_ep = 0
+    # Pick up where a dropped run left off, if its state file is there.
+    if a.resume_state and os.path.exists(a.resume_state):
+        st = torch.load(a.resume_state, map_location=dev)
+        model.load_state_dict(st['model'])
+        opt.load_state_dict(st['opt'])
+        start_ep = st['epoch']
+        best_val = st.get('best_val', float('inf'))
+        print(f"resumed from epoch {start_ep} (best val {best_val:.5f})",
+              flush=True)
+
+    for ep in range(start_ep, a.epochs):
         model.train()
         tot, nb, t0 = 0.0, 0, time.time()
         for W, B, stm, sc, wd, ob in dl:
@@ -441,6 +454,14 @@ def main():
             ckpt = f"{a.out}.ep{ep + 1}"
             quantize(model, ckpt)
             print(f"  checkpoint: {ckpt}", flush=True)
+        # Full state, so a dropped session (free Colab disconnects often)
+        # resumes instead of restarting from scratch.
+        if a.resume_state:
+            torch.save({"epoch": ep + 1,
+                        "model": model.state_dict(),
+                        "opt": opt.state_dict(),
+                        "best_val": best_val}, a.resume_state + ".tmp")
+            os.replace(a.resume_state + ".tmp", a.resume_state)
 
     print(f"best val loss {best_val:.5f}")
 
