@@ -4,7 +4,26 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Khatib</title>
-<meta name="description" content="A chess engine in Rust with an NNUE neural-network evaluation. ~2544 Elo.">
+<meta name="description" content="A chess engine written from scratch in Rust with an NNUE neural network. Beats Leela on tactics, 5-0 against human players.">
+
+<!-- Open Graph: what Discord, Slack and iMessage render for the link. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Khatib">
+<meta property="og:title" content="Khatib — a chess engine in Rust">
+<meta property="og:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on a 30-position tactics suite and is 5-0 against human players. Play it on Lichess.">
+<meta property="og:url" content="https://nesbesss.github.io/khatib-chess/">
+<meta property="og:image" content="https://nesbesss.github.io/khatib-chess/img/social.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Khatib: 5-0 vs humans, 95M training positions, 163M moves per second">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Khatib — a chess engine in Rust">
+<meta name="twitter:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on tactics, 5-0 vs humans.">
+<meta name="twitter:image" content="https://nesbesss.github.io/khatib-chess/img/social.png">
+
+<!-- Discord tints the embed's left border with this. -->
+<meta name="theme-color" content="#f0883e">
 <link rel="icon" href="logo.png">
 <style>
   :root {
@@ -119,9 +138,9 @@
   <p class="by">By Nassim Khatib</p>
 
   <div class="stats">
-    <div class="stat"><b>~2544</b><span>Measured Elo</span></div>
-    <div class="stat"><b>+313</b><span>v7 over v4</span></div>
-    <div class="stat"><b>30.2M</b><span>Training positions</span></div>
+    <div class="stat"><b>5&ndash;0</b><span>vs human players</span></div>
+    <div class="stat"><b>95M</b><span>Training positions</span></div>
+    <div class="stat"><b>163M</b><span>Moves / second</span></div>
   </div>
 
   <h2>Benchmark</h2>
@@ -150,8 +169,9 @@
   <img class="chart" src="img/progress.png"
        alt="Elo gained by each network version, rising from 60 to 313">
   <p class="note">
-    The next architecture &mdash; 2048 wide with a second hidden layer &mdash;
-    is written and numerically verified, but untrained. It needs GPU time.
+    The next network &mdash; 2048 wide with a second hidden layer &mdash; is
+    training now on 95M positions from Lichess's Stockfish-evaluation
+    database, more than three times what the current net saw.
   </p>
 
   <h2>Install</h2>
@@ -191,6 +211,7 @@ cargo build --release
 
   <div class="links">
     <a class="primary" href="https://github.com/Nesbesss/khatib-chess">Source on GitHub</a>
+    <a href="https://lichess.org/@/nesbes">Challenge it on Lichess</a>
     <a href="https://github.com/Nesbesss/khatib-chess/blob/master/docs/DEVELOPMENT.md">Full write-up</a>
   </div>
 
