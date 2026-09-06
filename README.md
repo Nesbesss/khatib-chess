@@ -30,6 +30,16 @@ root automatically.
 
 ## Play against it
 
+For engine development, use the [Fastchess testing setup](docs/testing.md):
+
+```bash
+python3 scripts/sprt.py NEW_BINARY OLD_BINARY --new-net NEW.nnue --old-net OLD.nnue
+```
+
+It supports different network architectures, colour-reversed opening pairs,
+SPRT and resumable results. Search Elo measurements from the old `duel.py`
+match loop are invalid because it reused the same opening.
+
 Khatib speaks **UCI**, so any standard chess program can use it.
 
 **On your computer** — install a free GUI ([Cute Chess], [Arena], or [BanksiaGUI]),

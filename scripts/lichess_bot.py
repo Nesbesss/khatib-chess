@@ -191,7 +191,9 @@ class Bot:
         variant = ch.get("variant", {}).get("key", "standard")
         speed = ch.get("speed", "")
         # Only standard chess: the engine knows no variant rules.
-        if variant != "standard" or speed in ("ultraBullet",):
+        # UltraBullet is allowed: the engine's time management scales down to
+        # ~30 ms per move on a nearly-empty clock, so it does not flag.
+        if variant != "standard":
             self.s.post(f"{API}/challenge/{cid}/decline",
                         data={"reason": "standard"})
             print(f"declined {cid} ({variant}/{speed})")
