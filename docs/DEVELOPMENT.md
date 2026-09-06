@@ -40,7 +40,7 @@ intuition both mislead:
 | Countermove history | **+117 ± 51 Elo** (200 games) |
 | NNUE v3 (24.3M positions) | +179 Elo, and +117 head-to-head vs v2 |
 | NNUE v2 (king buckets, 1024 wide, 11.2M positions) | +127 Elo (v1 was +60) |
-| Logarithmic LMR table | **+60 ± 49 Elo** (200 games) |
+| Logarithmic LMR table | **+58 ± 35 Elo** (380 games, 50 openings) |
 | Lazy SMP (8 threads) | depth 19 → 22 in 3 s |
 | SEE pruning in the main search | −191 Elo — reverted, **unverified** |
 | King-capture fix | ±0 Elo, but fixed a hard crash |
