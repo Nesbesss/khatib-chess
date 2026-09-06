@@ -313,10 +313,11 @@ class Bot:
                     self._rl = 0
                     if r.status_code in (200, 201):
                         print(f"challenged {name}")
-                        # Wait up to ~20s for acceptance before trying another,
-                        # cancelling the stale challenge if it is ignored.
+                        # Wait ~30s for acceptance, then cancel a stale
+                        # challenge and cool down, so challenges stay spaced
+                        # well under Lichess's rate limit.
                         cid = r.json().get("id")
-                        for _ in range(10):
+                        for _ in range(15):
                             if self.active >= self.max_games:
                                 break
                             time.sleep(2)
@@ -326,6 +327,7 @@ class Bot:
                                             timeout=10)
                             except Exception:
                                 pass
+                            time.sleep(30)   # ~60s between attempts total
                 except Exception:
                     pass
 
