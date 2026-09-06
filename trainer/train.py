@@ -366,14 +366,18 @@ def main():
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--checkpoint-every', type=int, default=0,
                     help='also export a net every N epochs, for game testing')
+    ap.add_argument('--device', default='',
+                    help="force 'cpu', 'mps' or 'cuda' (default: best available)")
     ap.add_argument('--resume-state', default='',
                     help='path for full train state; resumes if it exists')
     ap.add_argument('--lambda', dest='lam', type=float, default=0.7,
                     help='1.0 = pure search score, 0.0 = pure game result')
     a = ap.parse_args()
 
-    dev = ('cuda' if torch.cuda.is_available()
-           else 'mps' if torch.backends.mps.is_available() else 'cpu')
+    # --device forces a backend. Apple's Metal build has crashed with
+    # command-buffer errors on long runs, so CPU is a usable fallback there.
+    dev = a.device or ('cuda' if torch.cuda.is_available()
+                       else 'mps' if torch.backends.mps.is_available() else 'cpu')
     print(f"device: {dev}  lambda: {a.lam}")
 
     ds = PositionSet(a.data, a.limit)
