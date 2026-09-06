@@ -366,6 +366,8 @@ def main():
     ap.add_argument('--workers', type=int, default=4)
     ap.add_argument('--checkpoint-every', type=int, default=0,
                     help='also export a net every N epochs, for game testing')
+    ap.add_argument('--threads', type=int, default=0,
+                    help='torch compute threads (0 = library default)')
     ap.add_argument('--device', default='',
                     help="force 'cpu', 'mps' or 'cuda' (default: best available)")
     ap.add_argument('--resume-state', default='',
@@ -376,6 +378,10 @@ def main():
 
     # --device forces a backend. Apple's Metal build has crashed with
     # command-buffer errors on long runs, so CPU is a usable fallback there.
+    # On CPU the matmuls are the bottleneck and torch defaults to a subset of
+    # cores; use them all unless told otherwise.
+    if a.threads:
+        torch.set_num_threads(a.threads)
     dev = a.device or ('cuda' if torch.cuda.is_available()
                        else 'mps' if torch.backends.mps.is_available() else 'cpu')
     print(f"device: {dev}  lambda: {a.lam}")
