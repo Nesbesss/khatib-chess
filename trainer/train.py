@@ -202,9 +202,30 @@ class NNUE(nn.Module):
             self.l2.weight.clamp_(-127 / QB, 127 / QB)
             self.out.weight.clamp_(-127 / QB, 127 / QB)
 
+    def _bag(self, idx, offsets):
+        """EmbeddingBag(mode='sum'), with a fallback for Metal.
+
+        aten::_embedding_bag has no MPS kernel, so on that device the same sum
+        is done as a padded gather -- mathematically identical, just written
+        with ops Metal implements.
+        """
+        if idx.device.type != "mps":
+            return self.ft(idx, offsets)
+        n = offsets.shape[0]
+        ends = torch.cat([offsets[1:],
+                          torch.tensor([idx.shape[0]], device=idx.device)])
+        counts = ends - offsets
+        width = int(counts.max().item())
+        ar = torch.arange(width, device=idx.device).unsqueeze(0)
+        mask = ar < counts.unsqueeze(1)                    # (n, width)
+        gather = (offsets.unsqueeze(1) + ar).clamp(max=idx.shape[0] - 1)
+        rows = idx[gather]                                 # (n, width)
+        vecs = self.ft.weight[rows]                        # (n, width, HIDDEN)
+        return (vecs * mask.unsqueeze(-1)).sum(1)
+
     def forward(self, W, B, stm, ob=None):
-        aw = self.ft(W[0], W[1]) + self.ft_bias   # white-perspective
-        ab = self.ft(B[0], B[1]) + self.ft_bias   # black-perspective
+        aw = self._bag(W[0], W[1]) + self.ft_bias   # white-perspective
+        ab = self._bag(B[0], B[1]) + self.ft_bias   # black-perspective
         # Order the pair as [side-to-move, opponent] to match inference.
         stm = stm.unsqueeze(1).float()
         us = aw * (1 - stm) + ab * stm
