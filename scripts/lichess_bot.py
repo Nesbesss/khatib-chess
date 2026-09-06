@@ -289,9 +289,11 @@ class Bot:
             if not bots:
                 time.sleep(20)
                 continue
-            sent = 0
+            # One challenge at a time: fire, then wait for it to be accepted
+            # (a gameStart flips self.active). Blasting many at once trips
+            # Lichess's challenge rate limit, which then blocks for minutes.
             for name in bots:
-                if self.active >= self.max_games or sent >= 8:
+                if self.active >= self.max_games:
                     break
                 try:
                     r = self.s.post(f"{API}/challenge/{name}", data={
@@ -299,22 +301,27 @@ class Bot:
                         "rated": "true" if rated else "false",
                         "variant": "standard", "color": "random",
                     }, timeout=15)
+                    if r.status_code == 429:
+                        print("rate limited; backing off 60s")
+                        time.sleep(60)
+                        break
                     if r.status_code in (200, 201):
                         print(f"challenged {name}")
-                        sent += 1
-                        time.sleep(3)       # brief spacing, do not block
-                    elif r.status_code == 429:
-                        print("rate limited; pausing 10 min")
-                        time.sleep(600)
-                        break
+                        # Wait up to ~20s for acceptance before trying another,
+                        # cancelling the stale challenge if it is ignored.
+                        cid = r.json().get("id")
+                        for _ in range(10):
+                            if self.active >= self.max_games:
+                                break
+                            time.sleep(2)
+                        if self.active < self.max_games and cid:
+                            try:
+                                self.s.post(f"{API}/challenge/{cid}/cancel",
+                                            timeout=10)
+                            except Exception:
+                                pass
                 except Exception:
                     pass
-            # Let the outstanding challenges sit briefly; a gameStart cancels
-            # the wait by flipping self.playing.
-            for _ in range(8):
-                if self.active >= self.max_games:
-                    break
-                time.sleep(2)
 
     def run(self, seek_tc=None, rated=False):
         print(f"listening as {self.username} — challenge it at "
