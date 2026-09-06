@@ -33,3 +33,5 @@ wasm/pkg/
 
 logs/
 .telegram_subs
+
+data/selfplay/
