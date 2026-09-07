@@ -210,15 +210,20 @@ class Bot:
         print(f"accepted challenge {cid} from "
               f"{ch.get('challenger', {}).get('name', '?')}: {r.status_code}")
 
-    GREETING = ("Hi, I'm Khatib \u2014 a chess engine written from scratch in "
-                "Rust with my own NNUE neural network. Still improving! "
-                "Source: github.com/Nesbesss/khatib-chess  Good luck!")
+    # Lichess caps chat at 140 characters.
+    GREETING = ("Hi, I'm Khatib \u2014 a chess engine built from scratch in "
+                "Rust with my own neural net. Still improving! "
+                "github.com/Nesbesss/khatib-chess")
 
     def say(self, game_id, text, room="player"):
         """Best-effort chat; never let it interrupt a game."""
         try:
-            self.s.post(f"{API}/bot/game/{game_id}/chat",
-                        data={"room": room, "text": text}, timeout=10)
+            r = self.s.post(f"{API}/bot/game/{game_id}/chat",
+                            data={"room": room, "text": text}, timeout=10)
+            # A bare exception check hid this: Lichess rejects with a status,
+            # not an exception, so a refused message looked like success.
+            if r.status_code != 200:
+                print(f"chat rejected {r.status_code}: {r.text[:150]}")
         except Exception as e:
             print(f"chat failed: {e}")
 
