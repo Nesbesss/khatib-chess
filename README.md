@@ -1,7 +1,7 @@
 # Khatib
 
-A chess engine in Rust with an NNUE neural-network evaluation. **~2544 Elo** —
-strong club strength. Runs in any chess GUI, or as a bot on Lichess.
+A chess engine in Rust with an NNUE neural-network evaluation. Beat a
+2651-rated player 8&half;–&half;, and drew Stockfish 18. Runs in any chess GUI, or as a bot on Lichess.
 
 Named after its author, Nassim Khatib.
 

@@ -27,7 +27,7 @@ fig.text(0.225, 0.655, "a chess engine in Rust with an NNUE neural network",
          color=SUB, fontsize=20, va="center", ha="left")
 
 # Three stat tiles.
-stats = [("5-0", "vs human players"), ("95M", "training positions"),
+stats = [("21-0", "vs human players"), ("1/2-1/2", "vs Stockfish 18"),
          ("163M", "moves / second")]
 for i, (big, small) in enumerate(stats):
     x = 0.055 + i * 0.315

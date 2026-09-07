@@ -274,6 +274,39 @@ class NNUE(nn.Module):
         return (hb * w).sum(1) + self.out.bias[ob]
 
 
+class QuantizedNNUE(NNUE):
+    """Direct-head QAT: train through exactly the exported weight grids.
+
+    Floating master parameters retain sub-grid optimizer updates. The forward
+    path uses rounded weights, with a straight-through gradient estimator.
+    Float arithmetic only leaves Rust's final centipawn truncation (<1 cp).
+    The file layout, features, activation and Rust evaluator stay unchanged.
+    """
+    def __init__(self, hidden=1536, l2=0):
+        if l2:
+            raise ValueError('QuantizedNNUE currently supports only the direct head')
+        super().__init__(hidden, l2)
+
+    @staticmethod
+    def grid(tensor, scale):
+        quantized = torch.clamp(torch.round(tensor * scale), -32768, 32767) / scale
+        return tensor + (quantized - tensor).detach()
+
+    def forward(self, W, B, stm, ob=None):
+        ft = self.grid(self.ft.weight, QA)
+        bias = self.grid(self.ft_bias, QA)
+        aw = F.embedding_bag(W[0], ft, W[1], mode='sum') + bias
+        ab = F.embedding_bag(B[0], ft, B[1], mode='sum') + bias
+        stm = stm.unsqueeze(1).float()
+        x = torch.cat([aw * (1 - stm) + ab * stm,
+                       ab * (1 - stm) + aw * stm], dim=1).clamp(0, 1)
+        if ob is None:
+            ob = torch.full((x.shape[0],), OUT_BUCKETS // 2, dtype=torch.long, device=x.device)
+        out_weight = self.grid(self.out.weight, QB)
+        out_bias = self.grid(self.out.bias, QA * QB)
+        return (x * out_weight[ob]).sum(1) + out_bias[ob]
+
+
 def to_wdl(cp):
     """Map centipawns to a win probability. Training on WDL rather than raw
     centipawns keeps huge scores from dominating the loss."""

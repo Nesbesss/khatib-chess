@@ -200,12 +200,23 @@ def engine_scores(engine, net, fens, log):
     return np.asarray(scores)
 
 
-def float_scores(path, net_path, hidden, l2, fens):
+def float_scores(path, net_path, hidden, l2, fens, include_master=False):
+    # Constructing reference models initializes random parameters before
+    # loading the checkpoint. Diagnostics must not advance a trainer's RNG.
     import torch
-    from train import NNUE, collate, fen_to_features, output_bucket, quantized_arrays
+    with torch.random.fork_rng(devices=[]):
+        return _float_scores(path, net_path, hidden, l2, fens, include_master)
+
+
+def _float_scores(path, net_path, hidden, l2, fens, include_master=False):
+    import torch
+    from train import NNUE, QuantizedNNUE, collate, fen_to_features, output_bucket, quantized_arrays
     torch.set_num_threads(2)
     state = torch.load(path, map_location='cpu', weights_only=True)
-    model = NNUE(hidden, l2)
+    mode = state.get('inference', 'standard')
+    if mode not in ('standard', 'quantized-forward-v1'):
+        raise ValueError(f'Unknown checkpoint inference mode: {mode}')
+    model = (QuantizedNNUE if mode == 'quantized-forward-v1' else NNUE)(hidden, l2)
     model.load_state_dict(state['model'] if 'model' in state else state)
     model.eval()
     exported = b''.join(a.tobytes() for a in quantized_arrays(model))
@@ -219,7 +230,12 @@ def float_scores(path, net_path, hidden, l2, fens):
             scale = QA*QB
         q = torch.round(t.detach()*scale)
         clipped[name] = int(((q < -32768) | (q > 32767)).sum())
-    scores = []
+    master = None
+    if mode == 'quantized-forward-v1' and include_master:
+        master = NNUE(hidden, l2)
+        master.load_state_dict(model.state_dict())
+        master.eval()
+    scores, master_scores = [], []
     with torch.no_grad():
         for start in range(0, len(fens), 128):
             batch = []
@@ -228,6 +244,10 @@ def float_scores(path, net_path, hidden, l2, fens):
                 batch.append((np.array(w), np.array(b), stm, 0, -1, output_bucket(fen)))
             W, B, stm, _, _, ob = collate(batch)
             scores.extend((model(W, B, stm, ob)*SCALE).tolist())
+            if master is not None:
+                master_scores.extend((master(W, B, stm, ob)*SCALE).tolist())
+    if include_master:
+        return np.asarray(scores), clipped, dict(mode=mode, master_scores=master_scores)
     return np.asarray(scores), clipped
 
 
@@ -293,7 +313,7 @@ def check(engine, net, hidden, l2, fens, out, float_path=None, audit=False):
         report['incremental'] = 'pass' if passed else 'fail'
         ok &= passed
     if float_path:
-        floats, clipped = float_scores(float_path, net, hidden, l2, fens)
+        floats, clipped, float_meta = float_scores(float_path, net, hidden, l2, fens, include_master=True)
         stats = error_stats(floats, q)
         report.update(float_integer=stats, clipped_parameters=clipped,
                       float_std_cp=float(floats.std()), integer_std_cp=float(q.std()),
@@ -306,6 +326,11 @@ def check(engine, net, hidden, l2, fens, out, float_path=None, audit=False):
                                if (ix := [i for i, r in enumerate(refs) if r[3] == s])})
         report['worst_float'] = [dict(fen=fens[i], float_cp=float(floats[i]), integer=int(q[i]))
                                  for i in np.argsort(np.abs(floats-q))[-20:][::-1]]
+        report['float_inference_mode'] = float_meta['mode']
+        if float_meta['master_scores']:
+            # Optimizer storage is not the QAT model's forward function. Keep
+            # this diagnostic visible; never mislabel it as historical parity.
+            report['master_float_integer'] = error_stats(float_meta['master_scores'], q)
         ok &= (stats['mae'] <= 10 and stats['p95'] <= 25 and stats['max'] <= 100
                and not sum(clipped.values()) and not report['sign_flips_outside_100cp'])
     for key, path in [('engine', engine), ('net', net), ('float', float_path)]:

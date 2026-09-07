@@ -22,9 +22,9 @@ def _style(ax, fig):
 
 
 def tactics(path="docs/img/benchmark.png"):
-    names = ["Stockfish 17", "Khatib", "Leela (lc0)"]
-    vals = [46.7, 40.0, 33.3]
-    raw = ["14/30", "12/30", "10/30"]
+    names = ["Stockfish 17", "Khatib v10", "Leela (lc0)"]
+    vals = [50.0, 43.3, 36.7]
+    raw = ["15/30", "13/30", "11/30"]
     colors = [DIM, ACCENT, DIM]
 
     fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
@@ -47,23 +47,28 @@ def tactics(path="docs/img/benchmark.png"):
 
 
 def progress(path="docs/img/progress.png"):
-    # Each point is that version's measured gain over the version before it,
-    # not a cumulative rating: v7's +313 was measured against v4.
-    labels = ["v1", "v2", "v3", "v4", "v7"]
-    elo = [60, 127, 179, 241, 313]
+    """Each network's measured gain over the one before it.
 
-    fig, ax = plt.subplots(figsize=(8, 3.2), dpi=200)
+    Bars, not a line: these are independent steps, and a line makes a smaller
+    step look like a regression when every bar is in fact a win.
+    """
+    labels = ["v2", "v3", "v4", "v7", "v10"]
+    elo = [127, 179, 241, 313, 56]
+    note = ["over v1", "over v2", "over v3", "over v4", "over v7"]
+
+    fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
     _style(ax, fig)
     ax.grid(axis="x", color=BG, linewidth=0)
     ax.grid(axis="y", color=GRID, linewidth=1)
-    ax.plot(labels, elo, color=ACCENT, linewidth=2.5, marker="o",
-            markersize=7, markerfacecolor=ACCENT, zorder=3)
-    for x, v in zip(labels, elo):
-        ax.annotate(f"+{v}", (x, v), textcoords="offset points",
-                    xytext=(0, 10), ha="center", color=INK, fontsize=10)
-    ax.set_ylim(0, 380)
-    ax.set_ylabel("Elo gained over the previous version", color=SUB, fontsize=10)
-    ax.set_title("each network beat the one before it · measured in games",
+    bars = ax.bar(labels, elo, color=[DIM] * 4 + [ACCENT], width=0.55, zorder=3)
+    for b, v, n in zip(bars, elo, note):
+        ax.text(b.get_x() + b.get_width() / 2, v + 8, f"+{v}",
+                ha="center", color=INK, fontsize=11, fontweight="bold")
+        ax.text(b.get_x() + b.get_width() / 2, 8, n,
+                ha="center", color=SUB, fontsize=8.5)
+    ax.set_ylim(0, 370)
+    ax.set_ylabel("Elo gained over the previous net", color=SUB, fontsize=10)
+    ax.set_title("every network beat the one before it \u00b7 measured in games",
                  color=INK, fontsize=12, pad=14, loc="left")
     fig.tight_layout()
     fig.savefig(path, facecolor=BG)

@@ -138,8 +138,8 @@
   <p class="by">By Nassim Khatib</p>
 
   <div class="stats">
-    <div class="stat"><b>5&ndash;0</b><span>vs human players</span></div>
-    <div class="stat"><b>95M</b><span>Training positions</span></div>
+    <div class="stat"><b>21&ndash;0</b><span>vs human players</span></div>
+    <div class="stat"><b>&frac12;&ndash;&frac12;</b><span>vs Stockfish 18</span></div>
     <div class="stat"><b>163M</b><span>Moves / second</span></div>
   </div>
 
@@ -152,26 +152,30 @@
        alt="Stockfish 14 of 30, Khatib 12 of 30, Leela 10 of 30">
   <table>
     <tr><th>Engine</th><th class="n">Solved</th></tr>
-    <tr><td>Stockfish 17</td><td class="n">14 / 30</td></tr>
-    <tr class="me"><td>Khatib</td><td class="n">12 / 30</td></tr>
-    <tr><td>Leela (lc0)</td><td class="n">10 / 30</td></tr>
+    <tr><td>Stockfish 17</td><td class="n">15 / 30</td></tr>
+    <tr class="me"><td>Khatib v10</td><td class="n">13 / 30</td></tr>
+    <tr><td>Leela (lc0)</td><td class="n">11 / 30</td></tr>
   </table>
   <p class="note">
-    Khatib scores 11&ndash;12 across runs, so the gap to Stockfish is small but
-    real. Stockfish is a far more mature engine and this doesn't claim to match
+    Khatib varies by about a position between runs, so treat the two-position
+    gap to Stockfish as small but real. Stockfish is a far more mature engine and this doesn't claim to match
     it.
   </p>
 
-  <h2>Still training</h2>
+  <h2>Every version earns its place</h2>
   <p>
-    Each network was kept only after beating the previous one in real games.
+    A network ships only after beating the one before it over hundreds of
+    games. The current net, <b>v10</b>, won by <b>+56 &plusmn; 14 Elo</b> across
+    800 games.
   </p>
   <img class="chart" src="img/progress.png"
        alt="Elo gained by each network version, rising from 60 to 313">
   <p class="note">
-    The next network &mdash; 2048 wide with a second hidden layer &mdash; is
-    training now on 95M positions from Lichess's Stockfish-evaluation
-    database, more than three times what the current net saw.
+    Four attempts to beat v7 failed first, at &minus;266 to &minus;308 Elo
+    each. They ruled out the architecture and uncovered two real bugs: half
+    the training labels had inverted signs, and training silently pushed the
+    weights somewhere 16-bit export could not represent. v10 fixed both and
+    fine-tuned v7 rather than starting over.
   </p>
 
   <h2>Install</h2>
