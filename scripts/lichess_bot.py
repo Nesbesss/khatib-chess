@@ -250,8 +250,14 @@ class Bot:
                     if not our_turn:
                         continue
 
-                    mv = eng.best(moves, state.get("wtime", 60000),
-                                  state.get("btime", 60000),
+                    # Correspondence games report wtime/btime as INT32_MAX
+                    # (~25 days). Passing that through makes the engine
+                    # allocate hours per move, so the game appears frozen.
+                    # Cap the reported clock at ten minutes.
+                    CORR_CAP = 600_000
+                    mv = eng.best(moves,
+                                  min(state.get("wtime", 60000), CORR_CAP),
+                                  min(state.get("btime", 60000), CORR_CAP),
                                   state.get("winc", 0), state.get("binc", 0))
                     if not mv:
                         return
@@ -275,7 +281,7 @@ class Bot:
         except Exception:
             return []
 
-    def seek(self, minutes: int, inc: int, rated: bool):
+    def seek(self, seconds: int, inc: int, rated: bool):
         """Keep a game going by challenging other online bots.
 
         Lichess has no seek pool for BOT accounts -- board/seek is Board API
@@ -299,7 +305,7 @@ class Bot:
                     break
                 try:
                     r = self.s.post(f"{API}/challenge/{name}", data={
-                        "clock.limit": minutes * 60, "clock.increment": inc,
+                        "clock.limit": seconds, "clock.increment": inc,
                         "rated": "true" if rated else "false",
                         "variant": "standard", "color": "random",
                     }, timeout=15)
@@ -341,10 +347,10 @@ class Bot:
             print(f"telegram: on ({len(_tg_chats())} subscribed) — "
                   "anyone can /start the bot to follow games")
         if seek_tc:
-            mins, inc = seek_tc
-            print(f"seeking {mins}+{inc} games "
+            secs, inc = seek_tc
+            print(f"seeking {secs}s+{inc} games "
                   f"({'rated' if rated else 'casual'}) against real players")
-            threading.Thread(target=self.seek, args=(mins, inc, rated),
+            threading.Thread(target=self.seek, args=(secs, inc, rated),
                              daemon=True).start()
         for ev in self.stream_events():
             t = ev.get("type")
@@ -375,10 +381,13 @@ def main():
     seek_tc = None
     if a.seek:
         try:
-            mins, inc = a.seek.split("+")
-            seek_tc = (int(mins), int(inc))
+            base, inc = a.seek.split("+")
+            # "30s+0" means 30 seconds; plain "5+3" still means 5 minutes.
+            secs = int(base[:-1]) if base.endswith("s") else int(base) * 60
+            seek_tc = (secs, int(inc))
         except ValueError:
-            print(f"--seek wants MIN+INC, e.g. 5+3 (got {a.seek!r})")
+            print(f"--seek wants MIN+INC or SECs+INC, e.g. 5+3 or 30s+0 "
+                  f"(got {a.seek!r})")
             sys.exit(1)
 
     token = os.environ.get("LICHESS_TOKEN")

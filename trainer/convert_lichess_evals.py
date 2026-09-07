@@ -13,7 +13,7 @@ import zstandard as zstd
 URL = "https://database.lichess.org/lichess_db_eval.jsonl.zst"
 # Positions evaluated shallower than this are noise; the DB has plenty deep.
 MIN_DEPTH = 12
-CLAMP = 3000          # cap eval magnitude; mates and huge scores skew training
+ANCHOR_LIMIT = 1600   # where trainer/train.py's anchor term saturates
 
 
 def wdl_from_cp(cp):
@@ -53,12 +53,18 @@ def main():
                     if best.get("depth", 0) < a.min_depth:
                         continue
                     pv = best["pvs"][0]
+                    # The trainer's anchor term clamps at +/-1600 cp, so any
+                    # target beyond that lands on the same saturated value
+                    # while carrying up to 256x the loss of a +100 cp
+                    # position. Clamping mates to +/-3000 put 19% of the data
+                    # in that tail and dominated the gradient. Drop those
+                    # positions instead of piling them onto one target.
                     if "cp" in pv:
-                        cp = max(-CLAMP, min(CLAMP, int(pv["cp"])))
-                    elif "mate" in pv:
-                        cp = CLAMP if pv["mate"] > 0 else -CLAMP
+                        cp = int(pv["cp"])
+                        if abs(cp) >= ANCHOR_LIMIT:
+                            continue
                     else:
-                        continue
+                        continue          # mate scores carry no usable anchor
                 except Exception:
                     continue
                 # Lichess stores every score from White's point of view, but
