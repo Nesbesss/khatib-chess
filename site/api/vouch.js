@@ -10,8 +10,45 @@
 const hasKV = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 const KEY = 'khatib:vouches';
 
-// Non-durable fallback: resets when the function instance recycles.
+// A GitHub gist is the durable store when no KV is attached: free, needs no
+// card, and survives function recycles. Requires GIST_ID and GIST_TOKEN.
+const GIST = process.env.GIST_ID;
+const GIST_TOKEN = process.env.GIST_TOKEN;
+const hasGist = !!(GIST && GIST_TOKEN);
+const FILE = 'vouch.json';
+
+// Last resort: resets when the function instance recycles.
 let memory = 0;
+
+async function gist(method, body) {
+  const r = await fetch(`https://api.github.com/gists/${GIST}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${GIST_TOKEN}`,
+      accept: 'application/vnd.github+json',
+      'content-type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!r.ok) throw new Error(`gist ${method}: ${r.status}`);
+  return r.json();
+}
+
+async function gistRead() {
+  const d = await gist('GET');
+  const raw = d.files?.[FILE]?.content;
+  return Number(JSON.parse(raw || '{}').count) || 0;
+}
+
+async function gistBump() {
+  // Read-modify-write: two clicks in the same instant can collide and lose
+  // one, which is acceptable for a vouch counter.
+  const next = (await gistRead()) + 1;
+  await gist('PATCH', {
+    files: { [FILE]: { content: JSON.stringify({ count: next }) } },
+  });
+  return next;
+}
 
 async function kv(path) {
   const r = await fetch(`${process.env.KV_REST_API_URL}/${path}`, {
@@ -22,12 +59,14 @@ async function kv(path) {
 }
 
 async function read() {
+  if (hasGist) return gistRead();
   if (!hasKV) return memory;
   const v = await kv(`get/${KEY}`);
   return Number(v) || 0;
 }
 
 async function bump() {
+  if (hasGist) return gistBump();
   if (!hasKV) return ++memory;
   return Number(await kv(`incr/${KEY}`)) || 0;
 }

@@ -193,6 +193,14 @@ class Bot:
         # Only standard chess: the engine knows no variant rules.
         # UltraBullet is allowed: the engine's time management scales down to
         # ~30 ms per move on a nearly-empty clock, so it does not flag.
+        # Lichess refuses ultrabullet for BOT accounts outright: accepting
+        # returns 400 "Game incompatible with a BOT account". Decline it
+        # cleanly so the challenger gets a reason instead of silence.
+        if speed == "ultraBullet":
+            self.s.post(f"{API}/challenge/{cid}/decline",
+                        data={"reason": "tooFast"})
+            print(f"declined {cid}: ultrabullet not allowed for bots")
+            return
         if variant != "standard":
             self.s.post(f"{API}/challenge/{cid}/decline",
                         data={"reason": "standard"})
@@ -207,8 +215,14 @@ class Bot:
             print(f"declined {cid}: at capacity ({self.active}/{self.max_games})")
             return
         r = self.s.post(f"{API}/challenge/{cid}/accept")
-        print(f"accepted challenge {cid} from "
-              f"{ch.get('challenger', {}).get('name', '?')}: {r.status_code}")
+        who = ch.get("challenger", {}).get("name", "?")
+        if r.status_code == 200:
+            print(f"accepted {cid} from {who} ({speed})")
+        else:
+            # A bare status code hides why: usually the challenge expired or
+            # was cancelled before we answered.
+            print(f"ACCEPT FAILED {cid} from {who} ({speed}): "
+                  f"{r.status_code} {r.text[:160]}")
 
     # Lichess caps chat at 140 characters.
     GREETING = ("Hi, I'm Khatib \u2014 a chess engine built from scratch in "

@@ -3,6 +3,10 @@ use crate::board::{Board, START_FEN};
 use crate::movegen::{generate, GenMode};
 use crate::search::{SearchLimits, Searcher, ThreadedSearcher, MAX_PLY};
 use crate::types::*;
+
+// Largest clock reported this game, used to scale the panic threshold.
+static MAX_CLOCK_SEEN: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
 use std::io::{self, BufRead, Write};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -186,6 +190,9 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
     };
     if let Some(t) = time {
         let inc = inc.unwrap_or(0);
+        // Remember the largest clock seen this game to scale panic mode to
+        // the time control rather than an absolute number of seconds.
+        let t_start = MAX_CLOCK_SEEN.fetch_max(t, std::sync::atomic::Ordering::Relaxed).max(t);
         let moves_to_go = get("movestogo").unwrap_or(30).max(1);
         // Reserve an overhead margin so we never flag on the move being
         // computed; scale it with the clock so blitz stays safe.
@@ -205,9 +212,15 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
         // game is where flagging happens, and against a bot a fast sound move
         // beats a slow perfect one that loses on time. With any increment the
         // clock then holds steady instead of bleeding out.
-        if t < 30_000 {
+        // Panic mode only once the clock is genuinely short relative to the
+        // whole game. A flat 30 s threshold put every 30+0 bullet game into
+        // panic from move one, which is why those games looked like the
+        // engine was moving at random: a fixed usable/20 cap regardless of
+        // how much of the game remained.
+        let panic_at = (t_start / 4).min(20_000).max(5_000);
+        if t < panic_at {
             let cap = if inc > 0 { inc.saturating_sub(inc / 5).max(50) }
-                      else { (usable / 20).max(50) };
+                      else { (usable / 12).max(80) };
             hard = hard.min(cap);
         }
         // Global per-move cap: fast games, and depth past here buys little.
