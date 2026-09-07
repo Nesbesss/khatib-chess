@@ -123,6 +123,21 @@
   .links a.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   .links a:hover { border-color: var(--accent); }
   a { color: var(--accent); }
+  .vouch {
+    display: flex; align-items: center; gap: 14px;
+    margin: 34px 0 0; padding: 16px 18px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .vouch a {
+    background: var(--accent); border: 1px solid var(--accent); color: #fff;
+    text-decoration: none; font-size: 14.5px; font-weight: 600;
+    padding: 9px 16px; border-radius: 8px; white-space: nowrap;
+  }
+  .vouch b {
+    font-size: 22px; letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+  }
+  .vouch span { color: var(--sub); font-size: 13.5px; }
   footer {
     margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--line);
     color: var(--sub); font-size: 13.5px;
@@ -213,6 +228,14 @@ cargo build --release
     node counts &mdash; those misled repeatedly.
   </p>
 
+  <div class="vouch">
+    <a href="https://github.com/Nesbesss/khatib-chess" rel="noopener">&#9733; Vouch for Khatib</a>
+    <div>
+      <b id="stars">&mdash;</b>
+      <span id="starlabel">people have vouched</span>
+    </div>
+  </div>
+
   <div class="links">
     <a class="primary" href="https://github.com/Nesbesss/khatib-chess">Source on GitHub</a>
     <a href="https://lichess.org/@/nesbes">Challenge it on Lichess</a>
@@ -222,5 +245,19 @@ cargo build --release
   <footer>MIT licensed. Built in Rust.</footer>
 
 </main>
+
+<script>
+  // Star count doubles as the vouch count -- no backend, and a star is tied
+  // to a real account, so it cannot be spammed by clicking twice.
+  fetch('https://api.github.com/repos/Nesbesss/khatib-chess')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) {
+      if (!d || typeof d.stargazers_count !== 'number') return;
+      document.getElementById('stars').textContent = d.stargazers_count;
+      document.getElementById('starlabel').textContent =
+        d.stargazers_count === 1 ? 'person has vouched' : 'people have vouched';
+    })
+    .catch(function () { /* leave the dash */ });
+</script>
 </body>
 </html>
