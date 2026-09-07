@@ -1,21 +1,69 @@
-MIT License
+Khatib Chess Engine — Non-Commercial License
+Copyright (c) 2026 Nassim Khatib. All rights reserved.
 
-Copyright (c) 2026 Nassim Khatib
+This is a source-available licence, not an OSI-approved open-source licence:
+commercial use is restricted. The source is public so that anyone may read,
+learn from, run and improve it.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. PERMITTED, FREE OF CHARGE
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+   You may use, copy, modify, and distribute this software and its trained
+   networks for any NON-COMMERCIAL purpose, including:
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+     - personal and hobby use, including running it as a chess bot;
+     - study, teaching, and academic research;
+     - publishing modified versions, under the terms below;
+     - non-commercial tournaments and public analysis.
+
+2. ATTRIBUTION REQUIRED
+
+   Any use, distribution, or derivative work must give clear and visible
+   credit to Nassim Khatib as the original author, name the engine's origin
+   ("based on Khatib"), and link to
+   https://github.com/Nesbesss/khatib-chess
+
+   A bot or service built on this software must state that attribution
+   somewhere a user can see it — a profile description or an about page is
+   enough.
+
+3. SHARE ALIKE
+
+   If you distribute a modified version, you must release it under this same
+   licence and make your source available. You may not take this work
+   closed-source.
+
+4. NOT PERMITTED WITHOUT WRITTEN PERMISSION
+
+   The following require prior written permission from Nassim Khatib:
+
+     - selling this software, its networks, or access to them;
+     - including it in any paid product, paid service, or paid subscription;
+     - using it in a commercial product, or internally within a business to
+       produce commercial value;
+     - monetising a service that runs it, including advertising revenue;
+     - sublicensing or relicensing it under different terms.
+
+   To request permission, open an issue at the repository above.
+
+5. TRAINED NETWORKS
+
+   The neural network files (*.nnue) are covered by this licence exactly as
+   the source code is. They may not be redistributed as part of a commercial
+   engine, or presented as an independently trained network.
+
+6. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+   AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
+   ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+   WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+7. TERMINATION
+
+   Rights granted here end automatically if these terms are breached. They are
+   restored once the breach is corrected.
+
+This licence is modelled on Creative Commons Attribution-NonCommercial-
+ShareAlike 4.0 (CC BY-NC-SA 4.0), adapted for software.

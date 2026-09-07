@@ -113,4 +113,9 @@ a measurement bug that hid two real improvements for days, is in
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+**Source-available, non-commercial.** Free to use, study, modify and run —
+including as a chess bot — as long as you credit Nassim Khatib and link back
+here, and share modified versions under the same terms.
+
+Selling it, putting it in a paid product, or monetising a service that runs it
+needs written permission. See [LICENSE](LICENSE).
