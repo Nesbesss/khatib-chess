@@ -128,11 +128,13 @@
     margin: 34px 0 0; padding: 16px 18px;
     background: var(--card); border: 1px solid var(--line); border-radius: 12px;
   }
-  .vouch a {
+  .vouch button {
     background: var(--accent); border: 1px solid var(--accent); color: #fff;
-    text-decoration: none; font-size: 14.5px; font-weight: 600;
-    padding: 9px 16px; border-radius: 8px; white-space: nowrap;
+    font: inherit; font-size: 14.5px; font-weight: 600;
+    padding: 9px 16px; border-radius: 8px; white-space: nowrap; cursor: pointer;
   }
+  .vouch button:disabled { opacity: .55; cursor: default; }
+  .vouch #starline { display: block; font-size: 12.5px; color: var(--sub); }
   .vouch b {
     font-size: 22px; letter-spacing: -0.02em;
     font-variant-numeric: tabular-nums;
@@ -229,10 +231,11 @@ cargo build --release
   </p>
 
   <div class="vouch">
-    <a href="https://github.com/Nesbesss/khatib-chess" rel="noopener">&#9733; Vouch for Khatib</a>
+    <button id="vouchbtn" type="button">&#9733; Vouch for Khatib</button>
     <div>
-      <b id="stars">&mdash;</b>
-      <span id="starlabel">people have vouched</span>
+      <b id="vouches">&mdash;</b>
+      <span id="vouchlabel">vouches</span>
+      <span id="starline"></span>
     </div>
   </div>
 
@@ -247,17 +250,46 @@ cargo build --release
 </main>
 
 <script>
-  // Star count doubles as the vouch count -- no backend, and a star is tied
-  // to a real account, so it cannot be spammed by clicking twice.
+  // Vouches live in a small Vercel function so anyone can vouch without a
+  // GitHub account; stars are shown alongside because they are account-backed
+  // and mean something different.
+  var API = 'https://site-puce-nine-lhnzsnkcud.vercel.app/api/vouch';
+  var btn = document.getElementById('vouchbtn');
+  var num = document.getElementById('vouches');
+  var label = document.getElementById('vouchlabel');
+  var already = false;
+  try { already = localStorage.getItem('khatib-vouched') === '1'; } catch (e) {}
+
+  function show(n) {
+    num.textContent = n;
+    label.textContent = n === 1 ? 'vouch' : 'vouches';
+  }
+  function lock(text) { btn.disabled = true; btn.innerHTML = text; }
+
+  fetch(API).then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (d) { if (d && typeof d.count === 'number') show(d.count); })
+    .catch(function () {});
+
+  if (already) lock('&#10003; Vouched');
+  btn.addEventListener('click', function () {
+    if (btn.disabled) return;
+    lock('&#10003; Vouched');
+    try { localStorage.setItem('khatib-vouched', '1'); } catch (e) {}
+    fetch(API, { method: 'POST' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) { if (d && typeof d.count === 'number') show(d.count); })
+      .catch(function () {});
+  });
+
+  // Stars, as a separate and account-backed signal.
   fetch('https://api.github.com/repos/Nesbesss/khatib-chess')
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (d) {
       if (!d || typeof d.stargazers_count !== 'number') return;
-      document.getElementById('stars').textContent = d.stargazers_count;
-      document.getElementById('starlabel').textContent =
-        d.stargazers_count === 1 ? 'person has vouched' : 'people have vouched';
+      document.getElementById('starline').textContent =
+        '\u2605 ' + d.stargazers_count + ' on GitHub';
     })
-    .catch(function () { /* leave the dash */ });
+    .catch(function () {});
 </script>
 </body>
 </html>
