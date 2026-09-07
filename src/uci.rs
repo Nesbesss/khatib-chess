@@ -24,8 +24,11 @@ pub fn run() {
 
         match cmd {
             "uci" => {
-                println!("id name Khatib 1.0");
-                println!("id author nesbes");
+                println!("id name Khatib v10");
+                println!("id author Nassim Khatib");
+                // The licence requires this URL to be visible to users, so
+                // the engine itself carries it.
+                println!("info string https://github.com/Nesbesss/khatib-chess");
                 println!("option name Hash type spin default 64 min 1 max 4096");
                 println!("option name Threads type spin default 1 min 1 max 64");
                 println!("option name OwnBook type check default true");

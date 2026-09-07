@@ -15,16 +15,38 @@ learn from, run and improve it.
      - publishing modified versions, under the terms below;
      - non-commercial tournaments and public analysis.
 
-2. ATTRIBUTION REQUIRED
+2. ATTRIBUTION REQUIRED — THE REPOSITORY LINK MUST BE VISIBLE
 
-   Any use, distribution, or derivative work must give clear and visible
-   credit to Nassim Khatib as the original author, name the engine's origin
-   ("based on Khatib"), and link to
-   https://github.com/Nesbesss/khatib-chess
+   Any use, distribution, or derivative work must credit Nassim Khatib as the
+   original author AND display this repository URL:
 
-   A bot or service built on this software must state that attribution
-   somewhere a user can see it — a profile description or an about page is
-   enough.
+       https://github.com/Nesbesss/khatib-chess
+
+   The URL must be visible to the people using your work, not buried in source
+   comments or a licence file alone. Specifically:
+
+     a) SOFTWARE AND ENGINES — show it in the program: a UCI "id author" or
+        startup line, an about box, a --version output, or the README of a
+        distributed build.
+
+     b) BOTS AND ONLINE SERVICES — show it where users of that bot or service
+        can read it: the account profile or bio, an about page, or a message
+        the bot sends. A Lichess or chess-site bot must carry it in its
+        profile description.
+
+     c) WEBSITES, APPS AND PRODUCTS — show it in the interface or on a
+        credits/about page reachable from the interface.
+
+     d) PAPERS, VIDEOS, POSTS AND PRESENTATIONS — show it in the text,
+        description, or on screen.
+
+   Suggested wording:
+
+       Powered by Khatib by Nassim Khatib
+       https://github.com/Nesbesss/khatib-chess
+
+   Removing, obscuring, or relocating this attribution out of view terminates
+   the rights granted by this licence (see section 7).
 
 3. SHARE ALIKE
 
