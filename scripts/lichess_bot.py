@@ -210,11 +210,24 @@ class Bot:
         print(f"accepted challenge {cid} from "
               f"{ch.get('challenger', {}).get('name', '?')}: {r.status_code}")
 
+    GREETING = ("Hi, I'm Khatib \u2014 a chess engine written from scratch in "
+                "Rust with my own NNUE neural network. Still improving! "
+                "Source: github.com/Nesbesss/khatib-chess  Good luck!")
+
+    def say(self, game_id, text, room="player"):
+        """Best-effort chat; never let it interrupt a game."""
+        try:
+            self.s.post(f"{API}/bot/game/{game_id}/chat",
+                        data={"room": room, "text": text}, timeout=10)
+        except Exception as e:
+            print(f"chat failed: {e}")
+
     def play(self, game_id):
         eng = Engine()
         my_color = None
         print(f"game {game_id} started")
         notify(f"\u265e Game started\nhttps://lichess.org/{game_id}")
+        self.say(game_id, self.GREETING)
         try:
             with self.s.get(f"{API}/bot/game/stream/{game_id}", stream=True) as r:
                 for line in r.iter_lines():
