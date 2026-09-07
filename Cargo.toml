@@ -3,4 +3,8 @@ name = "chess"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+# Opt-in experimental evaluator. Default builds retain the deployed v7 format.
+nnue-v8 = []
+
 [dependencies]

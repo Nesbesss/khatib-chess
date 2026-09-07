@@ -8,6 +8,10 @@ Output matches trainer/train.py's expectations:  FEN | cp | wdl
   python3 trainer/convert_lichess_evals.py --out data/lichess.txt --limit 50000000
 """
 import argparse, json, sys, urllib.request
+try:
+    import chess          # only needed with --quiet-only
+except ImportError:
+    chess = None
 import zstandard as zstd
 
 URL = "https://database.lichess.org/lichess_db_eval.jsonl.zst"
@@ -28,6 +32,10 @@ def main():
     ap.add_argument("--min-depth", type=int, default=MIN_DEPTH)
     ap.add_argument("--url", default=URL)
     ap.add_argument("--local", help="read this local .zst instead of the URL")
+    ap.add_argument("--quiet-only", action="store_true",
+                    help="keep only positions with no check and no capture "
+                         "available, matching how src/datagen.rs filters our "
+                         "own self-play data")
     a = ap.parse_args()
 
     src = open(a.local, "rb") if a.local else urllib.request.urlopen(a.url)
@@ -77,6 +85,19 @@ def main():
                 # The DB omits halfmove/fullmove counters; our parser wants them.
                 if fen.count(" ") == 3:
                     fen += " 0 1"
+                # A static evaluator cannot resolve a pending capture, so
+                # training it on tactical positions teaches it to guess.
+                # v7's data was filtered this way; the Lichess set is 81%
+                # positions with captures available.
+                if a.quiet_only:
+                    try:
+                        b = chess.Board(fen)
+                    except Exception:
+                        continue
+                    if b.is_check():
+                        continue
+                    if any(b.is_capture(m) for m in b.legal_moves):
+                        continue
                 # These are engine evaluations, not game results: mark the
                 # outcome unknown rather than inventing one from the score.
                 out.write(f"{fen} | {cp}\n")

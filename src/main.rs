@@ -32,6 +32,16 @@ fn main() {
         }
     }
     match args.get(1).map(|s| s.as_str()) {
+        Some("nnue-audit") => {
+            let Some(net) = eval::network() else {
+                eprintln!("nnue-audit requires a successfully loaded network");
+                std::process::exit(1);
+            };
+            match nnue::audit_accumulators(net) {
+                Ok(edges) => println!("NNUE accumulator audit passed: {} edges", edges),
+                Err(e) => { eprintln!("NNUE accumulator audit failed: {}", e); std::process::exit(1); }
+            }
+        }
         Some("perft") => {
             let depth: u32 = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(5);
             let fen = args.get(3).cloned().unwrap_or_else(|| board::START_FEN.to_string());

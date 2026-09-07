@@ -1,7 +1,8 @@
-"""NNUE trainer: 768 -> 512x2 -> 1, matching src/nnue.rs exactly.
+"""NNUE models and legacy trainer (default 2048x2 -> 16 -> 1).
 
 Reads "FEN | score" lines, trains on the search score as a soft target, and
-exports quantized int16 weights in the flat layout the engine loads.
+exports quantized int16 weights. Use architecture_ab.py for the controlled
+CPU experiment; Rust's default build is v7 (1536/direct), nnue-v8 is opt-in.
 """
 import argparse, math, os, struct, time
 import numpy as np
@@ -12,7 +13,7 @@ from torch.utils.data import Dataset, DataLoader
 
 import os as _os
 # Width is an experiment knob: the net must be sized to the data on hand, and
-# the Rust side reads the same value from CHESS_HIDDEN.
+# each Rust build must have the matching compile-time architecture.
 INPUT = 768
 HIDDEN = int(_os.environ.get("CHESS_HIDDEN", "2048"))
 BUCKETS = 8                            # king buckets; must match src/nnue.rs
@@ -186,17 +187,18 @@ def collate(batch):
 
 
 class NNUE(nn.Module):
-    def __init__(self):
+    def __init__(self, hidden=HIDDEN, l2=L2):
         super().__init__()
+        self.hidden, self.l2_size = hidden, l2
         # EmbeddingBag with mode='sum' is exactly a linear layer applied to a
         # one-hot-sum input, but reads only the active rows.
-        self.ft = nn.EmbeddingBag(FT_SIZE, HIDDEN, mode='sum')
-        self.ft_bias = nn.Parameter(torch.zeros(HIDDEN))
+        self.ft = nn.EmbeddingBag(FT_SIZE, hidden, mode='sum')
+        self.ft_bias = nn.Parameter(torch.zeros(hidden))
         # Per bucket: a hidden layer over both perspectives, then a scalar.
         # Implemented as one wide layer and reshaped, so a single matmul covers
         # every bucket and the right slice is selected afterwards.
-        self.l2 = nn.Linear(HIDDEN * 2, OUT_BUCKETS * L2)
-        self.out = nn.Linear(L2, OUT_BUCKETS)
+        self.l2 = nn.Linear(hidden * 2, OUT_BUCKETS * l2) if l2 else None
+        self.out = nn.Linear(l2 or hidden * 2, OUT_BUCKETS)
         # Init wide enough that clipped-ReLU activations actually occupy
         # [0,1]. Too small and every quantized weight rounds toward zero,
         # which collapses the net to its bias after export.
@@ -219,7 +221,8 @@ class NNUE(nn.Module):
         with torch.no_grad():
             self.ft.weight.clamp_(-1.98, 1.98)
             self.ft_bias.clamp_(-1.98, 1.98)
-            self.l2.weight.clamp_(-127 / QB, 127 / QB)
+            if self.l2 is not None:
+                self.l2.weight.clamp_(-127 / QB, 127 / QB)
             self.out.weight.clamp_(-127 / QB, 127 / QB)
 
     def _bag(self, idx, offsets):
@@ -256,13 +259,15 @@ class NNUE(nn.Module):
         them = ab * (1 - stm) + aw * stm
         x = torch.cat([us, them], dim=1)
         x = torch.clamp(x, 0.0, 1.0)          # clipped ReLU, scaled to [0,1]
-        # Second layer, then per-bucket selection.
-        h = self.l2(x).view(-1, OUT_BUCKETS, L2)
-        h = torch.clamp(h, 0.0, 1.0)
         if ob is None:
             ob = torch.full((x.shape[0],), OUT_BUCKETS // 2,
                             dtype=torch.long, device=x.device)
-        idx = ob.view(-1, 1, 1).expand(-1, 1, L2)
+        if self.l2 is None:
+            return (x * self.out.weight[ob]).sum(1) + self.out.bias[ob]
+        # Second layer, then per-bucket selection.
+        h = self.l2(x).view(-1, OUT_BUCKETS, self.l2_size)
+        h = torch.clamp(h, 0.0, 1.0)
+        idx = ob.view(-1, 1, 1).expand(-1, 1, self.l2_size)
         hb = h.gather(1, idx).squeeze(1)                 # (batch, L2)
         # out.weight is (OUT_BUCKETS, L2); pick this position's row.
         w = self.out.weight[ob]                          # (batch, L2)
@@ -290,66 +295,40 @@ def blended_target(scores, wdls, lam):
     return eff * score_t + (1 - eff) * outcome_t
 
 
+def quantized_arrays(model):
+    """Both flat formats, explicitly little endian; preserve v8 rounding/scales."""
+    tensors = [(model.ft.weight, QA), (model.ft_bias, QA)]
+    if model.l2 is not None:
+        tensors += [(model.l2.weight, QB), (model.l2.bias, QA)]
+    tensors += [(model.out.weight, QB), (model.out.bias, QA * QB)]
+    return [np.clip(np.round(t.detach().cpu().numpy() * scale), -32768, 32767)
+            .astype('<i2') for t, scale in tensors]
+
+
 def quantize(model, path):
     """Write the flat int16 layout src/nnue.rs::load expects."""
-    ftw = model.ft.weight.detach().cpu().numpy()      # (FT_SIZE, HIDDEN)
-    ftb = model.ft_bias.detach().cpu().numpy()
-    l2w = model.l2.weight.detach().cpu().numpy()      # (OUT_BUCKETS*L2, HIDDEN*2)
-    l2b = model.l2.bias.detach().cpu().numpy()        # (OUT_BUCKETS*L2,)
-    ow = model.out.weight.detach().cpu().numpy()      # (OUT_BUCKETS, L2)
-    ob = model.out.bias.detach().cpu().numpy()        # (OUT_BUCKETS,)
-
-    q_ftw = np.clip(np.round(ftw * QA), -32768, 32767).astype(np.int16)
-    q_ftb = np.clip(np.round(ftb * QA), -32768, 32767).astype(np.int16)
-    q_l2w = np.clip(np.round(l2w * QB), -32768, 32767).astype(np.int16)
-    q_l2b = np.clip(np.round(l2b * QA), -32768, 32767).astype(np.int16)
-    q_ow  = np.clip(np.round(ow * QB), -32768, 32767).astype(np.int16)
-    # Bias shares the activation*weight scale so it adds directly to the sum.
-    q_ob  = np.clip(np.round(ob * QA * QB), -32768, 32767).astype(np.int16)
-
-    clipped = int((np.abs(np.round(ftw * QA)) > 32767).sum() +
-                  (np.abs(np.round(ow * QB)) > 32767).sum())
-    if clipped:
-        print(f"WARNING: {clipped} weights clipped during quantization")
-    # A net whose weights all round to near-zero evaluates to a constant.
-    scale_use = np.abs(q_ftw).mean() / QA
-    print(f"quantization: mean|ft_w| = {np.abs(q_ftw).mean():.1f}/{QA} "
-          f"({scale_use*100:.1f}% of range), mean|out_w| = "
-          f"{np.abs(q_ow).mean():.1f}/{QB}")
-    if np.abs(q_ftw).max() < QA * 0.1:
-        print("WARNING: feature weights are tiny; net may collapse to bias")
-
+    arrays = quantized_arrays(model)
     with open(path, 'wb') as f:
-        # EmbeddingBag stores [FT_SIZE][HIDDEN] already — the engine's layout.
-        f.write(q_ftw.tobytes())
-        f.write(q_ftb.tobytes())
-        f.write(q_l2w.tobytes())
-        f.write(q_l2b.tobytes())
-        f.write(q_ow.tobytes())
-        f.write(q_ob.tobytes())
+        for arr in arrays:
+            f.write(arr.tobytes())
     size = os.path.getsize(path)
-    expected = (FT_SIZE * HIDDEN + HIDDEN
-                + OUT_BUCKETS * L2 * HIDDEN * 2 + OUT_BUCKETS * L2
-                + OUT_BUCKETS * L2 + OUT_BUCKETS) * 2
+    hidden, l2 = model.hidden, model.l2_size
+    expected = (FT_SIZE * hidden + hidden + OUT_BUCKETS * (l2 or hidden * 2)
+                + OUT_BUCKETS + (OUT_BUCKETS * l2 * (hidden * 2 + 1) if l2 else 0)) * 2
     assert size == expected, f"wrote {size} bytes, engine expects {expected}"
     print(f"wrote {path} ({size:,} bytes)")
 
 
 def nnue_loss(pred_logit, scores, wdls, lam):
-    """WDL-space loss plus a direct anchor on the evaluation itself.
+    """Probability MSE plus 0.5 * clipped-centipawn/logit MSE.
 
-    The WDL term alone is minimized by shrinking the logit toward the flat
-    part of the sigmoid, which starves the output layer of magnitude and
-    destroys int16 precision after quantization. The anchor term keeps the
-    logit calibrated to actual centipawns.
+    Kept unchanged for the architecture experiment. The anchor gives large
+    errors more weight after the sigmoid saturates. Neither component is a
+    substitute for inference parity or playing-strength measurement.
     """
     target = blended_target(scores, wdls, lam)
     wdl_loss = F.mse_loss(torch.sigmoid(pred_logit), target)
-    # Anchor: the predicted logit should equal score/SCALE. Without this the
-    # WDL term is minimized by shrinking the logit into the sigmoid's flat
-    # region, which starves the output layer and destroys int16 precision.
-    # The WDL term lives on [0,1] while the anchor spans [-4,4], so the
-    # anchor needs a large nominal weight to have comparable influence.
+    # The bounded score target and existing 0.5 weight are experiment controls.
     anchor_t = torch.clamp(scores / SCALE, -4.0, 4.0)
     anchor_loss = F.mse_loss(pred_logit, anchor_t)
     return wdl_loss + 0.5 * anchor_loss
@@ -368,6 +347,10 @@ def main():
                     help='also export a net every N epochs, for game testing')
     ap.add_argument('--threads', type=int, default=0,
                     help='torch compute threads (0 = library default)')
+    ap.add_argument('--hidden', type=int, default=0,
+                    help='feature-transformer width (default: CHESS_HIDDEN)')
+    ap.add_argument('--l2', type=int, default=-1,
+                    help='second-layer width; 0 disables it (v7 shape)')
     ap.add_argument('--device', default='',
                     help="force 'cpu', 'mps' or 'cuda' (default: best available)")
     ap.add_argument('--resume-state', default='',
@@ -397,7 +380,9 @@ def main():
     vdl = DataLoader(val_ds, batch_size=a.batch, shuffle=False,
                      collate_fn=collate, num_workers=a.workers)
 
-    model = NNUE().to(dev)
+    model = NNUE(hidden=a.hidden or HIDDEN,
+                 l2=L2 if a.l2 < 0 else a.l2).to(dev)
+    print(f"architecture: hidden={model.hidden} l2={model.l2_size}", flush=True)
     opt = torch.optim.AdamW(model.parameters(), lr=a.lr, weight_decay=1e-8)
     sched = torch.optim.lr_scheduler.OneCycleLR(
         opt, max_lr=a.lr, total_steps=a.epochs * max(1, len(dl)))

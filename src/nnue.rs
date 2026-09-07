@@ -9,7 +9,15 @@ use crate::eval::Score;
 use crate::types::*;
 
 pub const INPUT: usize = 768;   // 64 squares x 6 piece types x 2 colors
+#[cfg(not(feature = "nnue-v8"))]
 pub const HIDDEN: usize = 1536;
+#[cfg(feature = "nnue-v8")]
+pub const HIDDEN: usize = 2048;
+#[cfg(feature = "nnue-v8")]
+pub const L2: usize = 16;
+#[cfg(not(feature = "nnue-v8"))]
+pub const L2: usize = 0;
+pub const OUTPUT_INPUTS: usize = if L2 == 0 { HIDDEN * 2 } else { L2 };
 // King buckets: a piece's value depends on where our king sits, so each king
 // region gets its own weight set. Indexed by the perspective's own king.
 pub const BUCKETS: usize = 8;
@@ -54,7 +62,11 @@ pub struct Network {
     pub ft_weight: [[i16; HIDDEN]; FT_SIZE],
     pub ft_bias: [i16; HIDDEN],
     // One output layer per piece-count bucket; both perspectives feed each.
-    pub out_weight: [[i16; HIDDEN * 2]; OUT_BUCKETS],
+    #[cfg(feature = "nnue-v8")]
+    pub l2_weight: [[[i16; HIDDEN * 2]; L2]; OUT_BUCKETS],
+    #[cfg(feature = "nnue-v8")]
+    pub l2_bias: [[i16; L2]; OUT_BUCKETS],
+    pub out_weight: [[i16; OUTPUT_INPUTS]; OUT_BUCKETS],
     pub out_bias: [i16; OUT_BUCKETS],
 }
 
@@ -271,14 +283,27 @@ pub fn evaluate_bucketed(net: &Network, acc: &Accumulator, side: Color,
                          bucket: usize) -> Score {
     // The side to move always reads perspective 0 of the pair.
     let (us, them) = if side == Color::White { (0, 1) } else { (1, 0) };
-    // i32 accumulation is enough: HIDDEN * QA * 32767 stays well inside range,
-    // and it vectorizes where i64 would not.
+    // Training clips head weights to +/-127 quantized; sums then fit i32.
+    // The parity tool separately rejects observed overflows in legacy nets.
     let b = bucket.min(OUT_BUCKETS - 1);
     let w = &net.out_weight[b];
     let mut sum: i32 = 0;
+    #[cfg(not(feature = "nnue-v8"))]
     for i in 0..HIDDEN {
         sum += crelu(acc.v[us][i]) * w[i] as i32;
         sum += crelu(acc.v[them][i]) * w[HIDDEN + i] as i32;
+    }
+    // Historical v8 arithmetic from df9f7d6, built with current search code.
+    #[cfg(feature = "nnue-v8")]
+    for j in 0..L2 {
+        let lw = &net.l2_weight[b][j];
+        let mut acc_sum: i32 = 0;
+        for i in 0..HIDDEN {
+            acc_sum += crelu(acc.v[us][i]) * lw[i] as i32;
+            acc_sum += crelu(acc.v[them][i]) * lw[HIDDEN + i] as i32;
+        }
+        let h = (acc_sum / QB + net.l2_bias[b][j] as i32).clamp(0, QA);
+        sum += h * w[j] as i32;
     }
     let sum = sum as i64;
     // Activations carry a factor of QA and out_weight a factor of QB, so the
@@ -290,7 +315,8 @@ pub fn evaluate_bucketed(net: &Network, acc: &Accumulator, side: Color,
 
 // Load a network from the flat little-endian i16 layout the trainer writes:
 //   ft_weight [BUCKETS*768][HIDDEN] | ft_bias [HIDDEN]
-//   | out_weight [HIDDEN*2] | out_bias [1]
+//   | optional l2_weight [8][16][HIDDEN*2] | optional l2_bias [8][16]
+//   | out_weight [8][OUTPUT_INPUTS] | out_bias [8]
 pub fn load(path: &str) -> std::io::Result<Box<Network>> {
     let bytes = std::fs::read(path)?;
     load_bytes(&bytes)
@@ -300,7 +326,8 @@ pub fn load(path: &str) -> std::io::Result<Box<Network>> {
 /// filesystem, so it fetches the file and hands the bytes here.
 pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
     let expected = (FT_SIZE * HIDDEN + HIDDEN
-                    + OUT_BUCKETS * HIDDEN * 2 + OUT_BUCKETS) * 2;
+                    + OUT_BUCKETS * L2 * (HIDDEN * 2 + 1)
+                    + OUT_BUCKETS * OUTPUT_INPUTS + OUT_BUCKETS) * 2;
     if bytes.len() != expected {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidData,
@@ -323,11 +350,74 @@ pub fn load_bytes(bytes: &[u8]) -> std::io::Result<Box<Network>> {
         }
     }
     for j in 0..HIDDEN { net.ft_bias[j] = vals.next().unwrap(); }
+    #[cfg(feature = "nnue-v8")]
+    {
+        for bucket in &mut net.l2_weight {
+            for row in bucket { for v in row { *v = vals.next().unwrap(); } }
+        }
+        for bucket in &mut net.l2_bias {
+            for v in bucket { *v = vals.next().unwrap(); }
+        }
+    }
     for b in 0..OUT_BUCKETS {
-        for j in 0..HIDDEN * 2 { net.out_weight[b][j] = vals.next().unwrap(); }
+        for j in 0..OUTPUT_INPUTS { net.out_weight[b][j] = vals.next().unwrap(); }
     }
     for b in 0..OUT_BUCKETS { net.out_bias[b] = vals.next().unwrap(); }
     Ok(net)
+}
+
+// Diagnostic on an ACTUAL loaded checkpoint, including special moves and
+// bucket transitions. This does not run in normal UCI/search operation.
+pub fn audit_accumulators(net: &Network) -> Result<u64, String> {
+    fn walk(net: &Network, board: &mut Board, stack: &mut AccStack, depth: u32)
+        -> Result<u64, String> {
+        let parent = *stack.top();
+        let mut fresh = Accumulator::new(net);
+        fresh.refresh(net, board);
+        let bucket = output_bucket(board.all.count_ones());
+        if parent.v != fresh.v || parent.bucket != fresh.bucket
+            || evaluate_bucketed(net, &parent, board.side, bucket)
+                != evaluate_bucketed(net, &fresh, board.side, bucket) {
+            return Err(format!("incremental/refresh mismatch at {}", board.to_fen()));
+        }
+        stack.push_null();
+        if stack.top().v != fresh.v || stack.top().bucket != fresh.bucket
+            || evaluate_bucketed(net, stack.top(), board.side.flip(), bucket)
+                != evaluate_bucketed(net, &fresh, board.side.flip(), bucket) {
+            return Err("null-move mismatch".into());
+        }
+        stack.pop();
+        if depth == 0 { return Ok(0); }
+        let list = crate::movegen::generate(board, crate::movegen::GenMode::All);
+        let mut edges = 0;
+        for i in 0..list.len {
+            let m = list[i];
+            stack.push(net, board, m);
+            let undo = board.make_move(m);
+            edges += 1 + walk(net, board, stack, depth - 1)?;
+            board.unmake_move(m, undo);
+            stack.pop();
+            if stack.top().v != parent.v || stack.top().bucket != parent.bucket {
+                return Err(format!("pop mismatch after {}", m.to_uci()));
+            }
+        }
+        Ok(edges)
+    }
+    let mut edges = 0;
+    for fen in [
+        crate::board::START_FEN,
+        "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+        "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1",
+        "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1",
+        "4k3/8/8/8/3Pp3/8/8/4K3 b - d3 0 1",
+        "n1n5/PPPk4/8/8/8/8/4Kppp/5N1N b - - 0 1",
+        "8/8/8/3k4/8/3K4/8/8 w - - 0 1",
+    ] {
+        let mut board = Board::from_fen(fen).map_err(|e| e.to_string())?;
+        let mut stack = AccStack::new(net, &board);
+        edges += walk(net, &mut board, &mut stack, 2)?;
+    }
+    Ok(edges)
 }
 
 #[cfg(test)]
@@ -389,6 +479,8 @@ mod quant_tests {
         };
         // One hidden unit fully active, one output weight.
         net.ft_bias[0] = QA as i16;         // activation saturates at QA
+        #[cfg(feature = "nnue-v8")]
+        for b in 0..OUT_BUCKETS { net.l2_weight[b][0][0] = QB as i16; }
         // Every bucket gets the same weight so the test is bucket-agnostic.
         for b in 0..OUT_BUCKETS { net.out_weight[b][0] = QB as i16; }
         net.out_bias = [0; OUT_BUCKETS];
@@ -437,7 +529,7 @@ mod incremental_tests {
         for i in 0..FT_SIZE { for j in 0..HIDDEN { net.ft_weight[i][j] = next(); } }
         for j in 0..HIDDEN { net.ft_bias[j] = next(); }
         for b in 0..OUT_BUCKETS {
-            for j in 0..HIDDEN * 2 { net.out_weight[b][j] = next(); }
+            for j in 0..OUTPUT_INPUTS { net.out_weight[b][j] = next(); }
         }
         for b in 0..OUT_BUCKETS { net.out_bias[b] = next(); }
         net
