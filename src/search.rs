@@ -250,8 +250,18 @@ impl Searcher {
     #[inline(always)]
     fn should_stop(&mut self) -> bool {
         if self.stopped { return true; }
-        // Checking the clock every node is a measurable cost; sample instead.
-        if self.nodes & 2047 == 0 {
+        // Checking the clock every node is a measurable cost, so sample --
+        // but the sampling interval is also the worst-case overshoot, since
+        // between two checks the search cannot stop. At 2048 nodes that is
+        // ~285 ms, which is most of a 1-second clock: a real game finished
+        // with 0.089 s left. Sample far more often once the budget is small,
+        // and keep the cheap interval when there is time to spend.
+        let mask = match self.limits.movetime {
+            Some(mt) if mt.as_millis() < 400 => 127,
+            Some(mt) if mt.as_millis() < 1500 => 511,
+            _ => 2047,
+        };
+        if self.nodes & mask == 0 {
             if self.stop.load(Ordering::Relaxed) { self.stopped = true; return true; }
             if let Some(mt) = self.limits.movetime {
                 if self.start.elapsed() >= mt { self.stopped = true; return true; }

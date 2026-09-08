@@ -232,13 +232,21 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
         // get to spend, which is exactly the "it's playing just something"
         // behaviour reported at the end of bullet games. Assume fewer moves
         // remain as the clock drains, so the last seconds are actually used.
+        // With no increment the starting clock is the entire game, so the
+        // early moves must be paid for out of the same seconds as the
+        // endgame. Budgeting 25 moves ahead at a full 30 s clock spent
+        // 1.2 s a move and burned half the clock inside 20 moves; both games
+        // measured then ran past 78 moves and finished on 1.0 s. Assume a
+        // long game while the clock is still full, and only shorten the
+        // horizon once it is genuinely draining.
         let expected_moves = if get("movestogo").is_some() {
             moves_to_go
         } else if t < 15_000 {
             // Short clock: a bullet game rarely has 40 moves left here.
             15
         } else if t < 60_000 {
-            25
+            // No increment means no refill, so plan for a long game.
+            if inc == 0 { 60 } else { 25 }
         } else {
             40
         };
