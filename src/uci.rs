@@ -7,6 +7,10 @@ use crate::types::*;
 // Largest clock reported this game, used to scale the panic threshold.
 static MAX_CLOCK_SEEN: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
+// Score of the previous search, so time management can tell a won position
+// from a lost one. Only ever a hint: it is one move stale by definition.
+static LAST_SCORE: std::sync::atomic::AtomicI32 =
+    std::sync::atomic::AtomicI32::new(0);
 use std::io::{self, BufRead, Write};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -42,6 +46,11 @@ pub fn run() {
             "ucinewgame" => {
                 board = Board::startpos();
                 searcher.clear();
+                // Per-game statics. The bot plays many games in one process,
+                // so without this a long game leaves the panic threshold
+                // scaled to the wrong time control for the next one.
+                MAX_CLOCK_SEEN.store(0, Ordering::Relaxed);
+                LAST_SCORE.store(0, Ordering::Relaxed);
             }
             "setoption" => {
                 // setoption name Hash value 256
@@ -74,7 +83,8 @@ pub fn run() {
                     }
                 }
                 let limits = parse_go(&tokens, board.side);
-                let (best, _) = searcher.search(&board, limits, true);
+                let (best, score) = searcher.search(&board, limits, true);
+                LAST_SCORE.store(score as i32, Ordering::Relaxed);
                 println!("bestmove {}", best.to_uci());
             }
             "stop" => searcher.stop.store(true, Ordering::Relaxed),
@@ -184,9 +194,9 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
     if let Some(ms) = get("movetime") { limits.movetime = Some(Duration::from_millis(ms)); }
 
     // Clock-based: budget a fraction of remaining time plus most of the increment.
-    let (time, inc) = match side {
-        Color::White => (get("wtime"), get("winc")),
-        Color::Black => (get("btime"), get("binc")),
+    let (time, inc, opp_time) = match side {
+        Color::White => (get("wtime"), get("winc"), get("btime")),
+        Color::Black => (get("btime"), get("binc"), get("wtime")),
     };
     if let Some(t) = time {
         let inc = inc.unwrap_or(0);
@@ -222,6 +232,25 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
             let cap = if inc > 0 { inc.saturating_sub(inc / 5).max(50) }
                       else { (usable / 12).max(80) };
             hard = hard.min(cap);
+        }
+        // Flagging: when the opponent is far shorter of time than we are,
+        // moving quickly puts the clock pressure on them. Lichess sends both
+        // clocks and we used to read only our own, so the engine played the
+        // same steady pace no matter how low the opponent was.
+        //
+        // Only press from a position that is not lost -- burning depth to
+        // chase a flag while losing on the board trades a draw for a loss --
+        // and never below a floor that would make the moves themselves bad.
+        // Requires us to hold a real cushion, so this cannot start a mutual
+        // time scramble we are losing.
+        if let Some(opp) = opp_time {
+            // One move stale, and 0 before the first search of a game, which
+            // reads as "not losing" -- the safe default here.
+            let losing = LAST_SCORE.load(Ordering::Relaxed) < -100;
+            let comfortable = t > opp.saturating_mul(2) && t > 10_000;
+            if comfortable && !losing {
+                hard = hard.min((hard / 2).max(150));
+            }
         }
         // Global per-move cap: fast games, and depth past here buys little.
         let move_cap = std::env::var("MOVE_CAP_MS").ok()
