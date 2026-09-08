@@ -11,6 +11,10 @@ static MAX_CLOCK_SEEN: std::sync::atomic::AtomicU64 =
 // from a lost one. Only ever a hint: it is one move stale by definition.
 static LAST_SCORE: std::sync::atomic::AtomicI32 =
     std::sync::atomic::AtomicI32::new(0);
+// Percentage of the normal time budget to use, set via the Pressure option.
+// 100 leaves time management exactly as it was.
+static PRESSURE: std::sync::atomic::AtomicU32 =
+    std::sync::atomic::AtomicU32::new(100);
 use std::io::{self, BufRead, Write};
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -40,6 +44,7 @@ pub fn run() {
                 println!("option name Hash type spin default 64 min 1 max 4096");
                 println!("option name Threads type spin default 1 min 1 max 64");
                 println!("option name OwnBook type check default true");
+                println!("option name Pressure type spin default 100 min 50 max 100");
                 println!("uciok");
             }
             "isready" => println!("readyok"),
@@ -66,6 +71,14 @@ pub fn run() {
                         (Some(&"Threads"), Some(n)) => searcher.set_threads(n),
                         (Some(&"OwnBook"), _) => {
                             use_book = tokens.last() == Some(&"true");
+                        }
+                        // Percentage of the normal time budget to spend.
+                        // 100 is full strength; lower trades depth for pace,
+                        // which is worth it only against an opponent far
+                        // enough below us that the lost depth cannot matter.
+                        // The caller decides that -- the engine just obeys.
+                        (Some(&"Pressure"), Some(p)) => {
+                            PRESSURE.store(p.clamp(50, 100) as u32, Ordering::Relaxed);
                         }
                         _ => {}
                     }
@@ -213,7 +226,23 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
         // exactly the game where flagging is the real risk -- and bank only
         // part of the increment so the clock is not spent faster than it is
         // replenished.
-        let soft = (usable / moves_to_go.max(40) + inc / 2).max(5);
+        // How many moves the clock still has to cover. A flat 40 is far too
+        // pessimistic once the clock is short: at 10 s it budgeted 245 ms a
+        // move and returned depth-2 moves while hoarding time it would never
+        // get to spend, which is exactly the "it's playing just something"
+        // behaviour reported at the end of bullet games. Assume fewer moves
+        // remain as the clock drains, so the last seconds are actually used.
+        let expected_moves = if get("movestogo").is_some() {
+            moves_to_go
+        } else if t < 15_000 {
+            // Short clock: a bullet game rarely has 40 moves left here.
+            15
+        } else if t < 60_000 {
+            25
+        } else {
+            40
+        };
+        let soft = (usable / expected_moves + inc / 2).max(5);
         // Hard cap: one move never takes more than a tenth of what is left,
         // and never more than twice the soft target -- a deep iteration cannot
         // be cut mid-way, so the soft limit alone overshoots by well over half.
@@ -247,10 +276,42 @@ fn parse_go(tokens: &[&str], side: Color) -> SearchLimits {
             // One move stale, and 0 before the first search of a game, which
             // reads as "not losing" -- the safe default here.
             let losing = LAST_SCORE.load(Ordering::Relaxed) < -100;
-            let comfortable = t > opp.saturating_mul(2) && t > 10_000;
-            if comfortable && !losing {
-                hard = hard.min((hard / 2).max(150));
+            // Ratio, not an absolute cushion. An earlier version also
+            // required 10 s on our own clock, which at 30+0 is almost never
+            // true -- across nine real bullet games it fired on 0 of 369
+            // moves, including one where the opponent reached 0.0 s while we
+            // held 3 s. Pressure has to work at the clock values a bullet
+            // game actually reaches.
+            //
+            // Press harder the further ahead we are, and keep a floor so the
+            // moves stay sound: at 4x we are spending a quarter of the
+            // budget, which is still a real search at these speeds.
+            let press = if t >= opp.saturating_mul(4) { 4 }
+                        else if t >= opp.saturating_mul(2) { 2 }
+                        else { 1 };
+            if press > 1 && !losing {
+                // The floor scales with the clock: 150 ms is sane at 30 s but
+                // wasteful at 3 s, where a sound move takes far less.
+                let floor = (t / 40).clamp(40, 150);
+                hard = hard.min((hard / press).max(floor));
             }
+        }
+        // Deliberate pace reduction against a much weaker opponent: spend
+        // less of the clock every move, so a gap opens from move one instead
+        // of only at the end. This costs real strength -- roughly a ply per
+        // halving -- which is why the caller only enables it when the rating
+        // gap is wide enough to absorb the loss.
+        let pressure = PRESSURE.load(Ordering::Relaxed).clamp(50, 100) as u64;
+        let (mut soft, mut hard) = (soft, hard);
+        if pressure < 100 {
+            // The floor has to leave room for a real search, not just a
+            // legal move: at 25% of a 30 s budget the engine was returning
+            // depth-1 moves off 147 nodes. Keep at least a third of the
+            // normal budget, and never less than 250 ms, so the moves stay
+            // sound while the pace still visibly quickens.
+            let floor = (hard / 3).max(250).min(hard);
+            soft = (soft * pressure / 100).max(floor.min(soft));
+            hard = (hard * pressure / 100).max(floor);
         }
         // Global per-move cap: fast games, and depth past here buys little.
         let move_cap = std::env::var("MOVE_CAP_MS").ok()
