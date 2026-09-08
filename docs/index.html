@@ -182,8 +182,9 @@
   <h2>Every version earns its place</h2>
   <p>
     A network ships only after beating the one before it over hundreds of
-    games. The current net, <b>v10</b>, won by <b>+56 &plusmn; 14 Elo</b> across
-    800 games.
+    games. <b>v10</b> won by <b>+56 &plusmn; 14 Elo</b> across 800 games;
+    <b>v11</b> is currently ahead of it by <b>+15 &plusmn; 14 Elo</b> at 320
+    games, which is the first read whose interval clears zero.
   </p>
   <img class="chart" src="img/progress.png?v=cb665582"
        alt="Elo gained by each network version, rising from 60 to 313">
@@ -193,6 +194,25 @@
     the training labels had inverted signs, and training silently pushed the
     weights somewhere 16-bit export could not represent. v10 fixed both and
     fine-tuned v7 rather than starting over.
+  </p>
+
+  <h2>Where it actually stands</h2>
+  <p>
+    On Lichess as <a href="https://lichess.org/@/nesbes">@nesbes</a>:
+    <b>2286 blitz</b> over 236 games, 2437 bullet (provisional). 325 games
+    played, 240 won.
+  </p>
+  <p>
+    Against <a href="https://github.com/Heiaha/Weiawaga">Weiawaga 6.0.0</a>,
+    a mature Rust engine, Khatib scored <b>0 wins, 36 losses, 4 draws</b> over
+    40 games at 10+0.1 &mdash; roughly 500 Elo behind. No time losses, so that
+    is a straight playing-strength gap, not a clock problem. Weiawaga has
+    singular extensions and a fully tuned parameter set; Khatib has neither
+    yet. Both are on the list.
+  </p>
+  <p class="note">
+    Search speed on an M4 Mac mini, one thread: <b>1.63M nodes/second</b>,
+    depth 17 from the start position in 7.6 seconds.
   </p>
 
   <h2>Install</h2>
