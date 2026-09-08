@@ -188,8 +188,13 @@ impl Accumulator {
     // Bucket for `perspective`, from its own king's square.
     #[inline(always)]
     pub fn bucket_of(perspective: Color, king_sq: u8) -> usize {
+        // A kingless position is not legal and never arrives from a GUI, but
+        // a malformed FEN reaches here with the caller's 64 "no such square"
+        // sentinel and used to panic on the index. An engine that aborts
+        // mid-game loses on time, so clamp instead: bucket 0 is wrong for a
+        // position that cannot occur, which beats taking the process down.
         let sq = if perspective == Color::White { king_sq } else { king_sq ^ 56 };
-        KING_BUCKET[sq as usize]
+        KING_BUCKET.get(sq as usize).copied().unwrap_or(0)
     }
 
     // Feature index for (piece, color, square) from `perspective`'s view.

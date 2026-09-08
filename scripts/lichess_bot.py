@@ -206,6 +206,15 @@ class Bot:
                         data={"reason": "standard"})
             print(f"declined {cid} ({variant}/{speed})")
             return
+        # Correspondence games run for days and hold a game slot the whole
+        # time. The game loop caps their reported clock so the engine does
+        # not allocate hours per move, but that only makes an accepted game
+        # playable -- it still occupies the bot. Decline at the door.
+        if speed == "correspondence":
+            self.s.post(f"{API}/challenge/{cid}/decline",
+                        data={"reason": "timeControl"})
+            print(f"declined {cid}: correspondence")
+            return
         # Our own outgoing challenges arrive on this stream too; accepting
         # one is a 404 no-op, so skip them.
         if ch.get("challenger", {}).get("id", "").lower() == self.username.lower():

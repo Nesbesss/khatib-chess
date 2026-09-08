@@ -169,6 +169,10 @@ pub struct Searcher {
     // Helper threads skip some iterations so they diverge from the main
     // thread's path and fill the shared table with different information.
     pub skip_depth: usize,
+    // Score from the last completed iteration, used to price a draw. A repeat
+    // is worth 0 only when the game is level; from a won position it throws
+    // the win away, which is how three won games became draws on Lichess.
+    root_score: Score,
 }
 
 impl Searcher {
@@ -195,6 +199,7 @@ impl Searcher {
             forced_net: None,
             last_capture_sq: 64,
             skip_depth: 0,
+            root_score: 0,
         }
     }
 
@@ -245,8 +250,18 @@ impl Searcher {
     #[inline(always)]
     fn should_stop(&mut self) -> bool {
         if self.stopped { return true; }
-        // Checking the clock every node is a measurable cost; sample instead.
-        if self.nodes & 2047 == 0 {
+        // Checking the clock every node is a measurable cost, so sample --
+        // but the sampling interval is also the worst-case overshoot, since
+        // between two checks the search cannot stop. At 2048 nodes that is
+        // ~285 ms, which is most of a 1-second clock: a real game finished
+        // with 0.089 s left. Sample far more often once the budget is small,
+        // and keep the cheap interval when there is time to spend.
+        let mask = match self.limits.movetime {
+            Some(mt) if mt.as_millis() < 400 => 127,
+            Some(mt) if mt.as_millis() < 1500 => 511,
+            _ => 2047,
+        };
+        if self.nodes & mask == 0 {
             if self.stop.load(Ordering::Relaxed) { self.stopped = true; return true; }
             if let Some(mt) = self.limits.movetime {
                 if self.start.elapsed() >= mt { self.stopped = true; return true; }
@@ -280,6 +295,8 @@ impl Searcher {
         let mut best_score = 0;
         let mut pv = Vec::new();
         let mut prev_best = Move::NULL;
+        // Last move's score must not price this move's draws.
+        self.root_score = 0;
 
         for depth in 1..=self.limits.depth {
             // Helper threads skip alternate shallow iterations, so they reach
@@ -297,6 +314,8 @@ impl Searcher {
             if self.stopped && depth > 1 { break; }
 
             best_score = score;
+            // Price draws in the next, deeper iteration by what this one found.
+            self.root_score = score;
             pv = self.extract_pv(board, depth as usize);
             if let Some(&m) = pv.first() { best = m; }
 
@@ -385,15 +404,21 @@ impl Searcher {
         // Check extension: don't drop into quiescence while in check.
         if in_check { depth += 1; }
 
+        // Draw detection comes before the drop into quiescence. Behind the
+        // depth cutoff it would only run at interior nodes, so at every leaf
+        // -- most of the tree, and proportionally more of it the shallower
+        // the search -- a repetition was scored a flat draw and the contempt
+        // below never applied. Shallow searches are the short-clock case
+        // this is meant to help most.
+        if !is_root && (self.is_repetition(board) || board.halfmove >= 100) {
+            return self.draw_score(ply);
+        }
+
         if depth <= 0 {
             return self.quiesce(board, ply, alpha, beta);
         }
 
         if !is_root {
-            // Draw by repetition or fifty-move rule.
-            if self.is_repetition(board) || board.halfmove >= 100 {
-                return DRAW;
-            }
             // Mate-distance pruning: a shorter mate is already available.
             let mate_alpha = alpha.max(-MATE + ply as Score);
             let mate_beta = beta.min(MATE - ply as Score - 1);
@@ -456,7 +481,9 @@ impl Searcher {
         let mut list = generate(board, GenMode::All);
         if list.len == 0 {
             // No legal moves: mate if in check, else stalemate.
-            return if in_check { -MATE + ply as Score } else { DRAW };
+            // Stalemate is a draw like any other: from a winning position it
+            // throws the win away, so it is priced the same as a repetition.
+            return if in_check { -MATE + ply as Score } else { self.draw_score(ply) };
         }
 
         self.order_moves(board, &mut list, tt_move, ply);
@@ -770,6 +797,34 @@ impl Searcher {
             | board.pieces[c][Piece::Rook.idx()] | board.pieces[c][Piece::Queen.idx()] != 0
     }
 
+    /// What a draw is worth right now.
+    ///
+    /// Zero when the game is level, which is correct and is what every
+    /// previous version returned. But from a winning position a draw is a
+    /// loss of the win, and scoring it at zero let the engine repeat out of
+    /// games it was a piece or a rook ahead in. So once the last completed
+    /// iteration says we are clearly winning, price a draw below zero and the
+    /// search will look for anything else first.
+    ///
+    /// Scores are negamax -- relative to the side to move -- so at odd plies
+    /// the sign flips: a draw that is bad for us is good for the opponent.
+    /// The penalty is capped well under a pawn, so it discourages a
+    /// repetition without ever making the engine prefer losing material to
+    /// avoid one.
+    fn draw_score(&self, ply: usize) -> Score {
+        // Below this the position is not clearly won and a draw is a fine
+        // result; roughly a minor piece.
+        const WINNING: Score = 250;
+        const PENALTY: Score = 50;
+        if self.root_score.abs() < WINNING {
+            return DRAW;
+        }
+        // root_score is from the perspective of whoever was to move at the
+        // root, which is our side. Positive means we are winning.
+        let penalty = if self.root_score > 0 { -PENALTY } else { PENALTY };
+        if ply % 2 == 0 { penalty } else { -penalty }
+    }
+
     fn is_repetition(&self, board: &Board) -> bool {
         // One prior occurrence in the search tree is enough to claim a draw;
         // repeating is always available to the side that wants it.
@@ -1076,5 +1131,43 @@ impl ThreadedSearcher {
 
         self.stop.store(false, Ordering::Relaxed);
         result.0
+    }
+}
+
+#[cfg(test)]
+mod contempt_tests {
+    use super::*;
+
+    /// A draw must be worth 0 when the game is level, and worth less than 0
+    /// to the side that is winning -- at both odd and even plies, since
+    /// negamax flips the sign every ply.
+    #[test]
+    fn draw_score_signs() {
+        let mut s = Searcher::new(1);
+
+        // Level: a draw is exactly a draw, whatever the ply.
+        s.root_score = 0;
+        assert_eq!(s.draw_score(0), DRAW);
+        assert_eq!(s.draw_score(1), DRAW);
+        s.root_score = 100;                    // below the 250 threshold
+        assert_eq!(s.draw_score(0), DRAW);
+
+        // Winning: a draw is a loss of the win. At even plies we are to move,
+        // so the score is ours and must be negative.
+        s.root_score = 600;
+        assert!(s.draw_score(0) < 0, "winning side must dislike a draw");
+        // At odd plies the opponent is to move and the sign flips: the same
+        // draw is good news for them.
+        assert!(s.draw_score(1) > 0, "sign must flip with the side to move");
+        assert_eq!(s.draw_score(0), -s.draw_score(1));
+
+        // Losing: a draw is a rescue, so it is worth more than the position.
+        s.root_score = -600;
+        assert!(s.draw_score(0) > 0, "losing side should welcome a draw");
+        assert!(s.draw_score(1) < 0);
+
+        // The nudge must never outweigh real material, or the engine would
+        // shed a piece to dodge a repetition.
+        assert!(s.draw_score(0).abs() < 100);
     }
 }
