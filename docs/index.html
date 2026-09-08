@@ -4,22 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Khatib</title>
-<meta name="description" content="A chess engine written from scratch in Rust with an NNUE neural network. Beats Leela on tactics, 5-0 against human players.">
+<meta name="description" content="A chess engine written from scratch in Rust with an NNUE neural network. Beats Leela on tactics; 56-2 against human players on Lichess.">
 
 <!-- Open Graph: what Discord, Slack and iMessage render for the link. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Khatib">
 <meta property="og:title" content="Khatib — a chess engine in Rust">
-<meta property="og:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on a 30-position tactics suite and is 5-0 against human players. Play it on Lichess.">
+<meta property="og:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on a 30-position tactics suite and is 56-2 against human players. Play it on Lichess.">
 <meta property="og:url" content="https://nesbesss.github.io/khatib-chess/">
 <meta property="og:image" content="https://nesbesss.github.io/khatib-chess/img/social.png?v=45b9fb67">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Khatib: 5-0 vs humans, 95M training positions, 163M moves per second">
+<meta property="og:image:alt" content="Khatib: 56-2 vs humans, 95M training positions, 163M moves per second">
 
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Khatib — a chess engine in Rust">
-<meta name="twitter:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on tactics, 5-0 vs humans.">
+<meta name="twitter:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on tactics, 56-2 vs humans.">
 <meta name="twitter:image" content="https://nesbesss.github.io/khatib-chess/img/social.png?v=45b9fb67">
 
 <!-- Discord tints the embed's left border with this. -->
@@ -155,7 +155,7 @@
   <p class="by">By Nassim Khatib</p>
 
   <div class="stats">
-    <div class="stat"><b>21&ndash;0</b><span>vs human players</span></div>
+    <div class="stat"><b>56&ndash;2</b><span>vs human players</span></div>
     <div class="stat"><b>&frac12;&ndash;&frac12;</b><span>vs Stockfish 18</span></div>
     <div class="stat"><b>163M</b><span>Moves / second</span></div>
   </div>
@@ -165,12 +165,12 @@
     Thirty hard positions, one second each, all three engines on the same
     machine.
   </p>
-  <img class="chart" src="img/benchmark.png?v=30c80d95"
+  <img class="chart" src="img/benchmark.png?v=391f5de0"
        alt="Stockfish 14 of 30, Khatib 12 of 30, Leela 10 of 30">
   <table>
     <tr><th>Engine</th><th class="n">Solved</th></tr>
     <tr><td>Stockfish 17</td><td class="n">15 / 30</td></tr>
-    <tr class="me"><td>Khatib v10</td><td class="n">13 / 30</td></tr>
+    <tr class="me"><td>Khatib v11</td><td class="n">13 / 30</td></tr>
     <tr><td>Leela (lc0)</td><td class="n">11 / 30</td></tr>
   </table>
   <p class="note">
@@ -186,7 +186,7 @@
     <b>v11</b> is currently ahead of it by <b>+15 &plusmn; 14 Elo</b> at 320
     games, which is the first read whose interval clears zero.
   </p>
-  <img class="chart" src="img/progress.png?v=cb665582"
+  <img class="chart" src="img/progress.png?v=2b893c81"
        alt="Elo gained by each network version, rising from 60 to 313">
   <p class="note">
     Four attempts to beat v7 failed first, at &minus;266 to &minus;308 Elo
@@ -210,6 +210,8 @@
     singular extensions and a fully tuned parameter set; Khatib has neither
     yet. Both are on the list.
   </p>
+  <img class="chart" src="img/standing.png?v=e0d3753e"
+       alt="Khatib at 2286, about 500 Elo below Weiawaga and 800 above a club player">
   <p class="note">
     Search speed on an M4 Mac mini, one thread: <b>1.63M nodes/second</b>,
     depth 17 from the start position in 7.6 seconds.

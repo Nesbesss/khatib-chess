@@ -10,6 +10,44 @@ use std::time::{Duration, Instant};
 
 pub const MAX_PLY: usize = 128;
 
+// Search parameters. Hardcoded values are the shipped defaults; a build can
+// override any of them through the environment so a tuning run can sweep one
+// knob at a time without a recompile per value. Read once, since std::env::var
+// on every node would cost more than the tuning is worth.
+pub struct Params {
+    pub rfp_margin: Score,      // reverse futility, per ply
+    pub rfp_depth: i32,
+    pub nmp_base: i32,          // null-move reduction = base + depth / div
+    pub nmp_div: i32,
+    pub fut_margin: Score,      // futility, per ply
+    pub fut_base: Score,
+    pub fut_depth: i32,
+    pub lmr_base: f64,          // reduction = base + ln(d)*ln(m) / div
+    pub lmr_div: f64,
+}
+
+fn env_i32(name: &str, default: i32) -> i32 {
+    std::env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+fn env_f64(name: &str, default: f64) -> f64 {
+    std::env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+pub static PARAMS: std::sync::LazyLock<Params> = std::sync::LazyLock::new(|| Params {
+    rfp_margin: env_i32("KH_RFP_MARGIN", 100) as Score,
+    rfp_depth:  env_i32("KH_RFP_DEPTH", 6),
+    nmp_base:   env_i32("KH_NMP_BASE", 3),
+    nmp_div:    env_i32("KH_NMP_DIV", 4),
+    fut_margin: env_i32("KH_FUT_MARGIN", 120) as Score,
+    fut_base:   env_i32("KH_FUT_BASE", 100) as Score,
+    fut_depth:  env_i32("KH_FUT_DEPTH", 6),
+    lmr_base:   env_f64("KH_LMR_BASE", 0.75),
+    lmr_div:    env_f64("KH_LMR_DIV", 2.25),
+});
+
+
+
 #[derive(Copy, Clone, PartialEq)]
 #[repr(u8)]
 pub enum Bound { Exact = 0, Lower = 1, Upper = 2 }
@@ -133,7 +171,7 @@ static LMR: std::sync::LazyLock<[[i32; 64]; 64]> = std::sync::LazyLock::new(|| {
     let mut t = [[0i32; 64]; 64];
     for d in 1..64 {
         for m in 1..64 {
-            t[d][m] = (0.75 + (d as f64).ln() * (m as f64).ln() / 2.25) as i32;
+            t[d][m] = (PARAMS.lmr_base + (d as f64).ln() * (m as f64).ln() / PARAMS.lmr_div) as i32;
         }
     }
     t
@@ -454,7 +492,7 @@ impl Searcher {
 
         // Reverse futility: if we're far enough ahead that even giving up
         // `margin` per remaining ply leaves us above beta, prune.
-        if !is_pv && !in_check && depth <= 6 && static_eval - 100 * depth >= beta
+        if !is_pv && !in_check && depth <= PARAMS.rfp_depth && static_eval - PARAMS.rfp_margin * depth as Score >= beta
             && static_eval < MATE_IN_MAX
         {
             return static_eval;
@@ -465,7 +503,7 @@ impl Searcher {
         if allow_null && !is_pv && !in_check && depth >= 3
             && static_eval >= beta && self.has_non_pawn_material(board)
         {
-            let r = 3 + depth / 4;
+            let r = PARAMS.nmp_base + depth / PARAMS.nmp_div;
             if let Some(stack) = self.acc.as_mut() { stack.push_null(); }
             let undo = self.make_null(board);
             let score = -self.alphabeta(board, depth - r, ply + 1, -beta, -beta + 1, false);
@@ -501,8 +539,8 @@ impl Searcher {
 
         // Futility: near the horizon, a quiet move that cannot plausibly
         // raise a hopeless static eval to alpha is not worth searching.
-        let futile = !is_pv && !in_check && depth <= 6
-            && static_eval + 120 * depth + 100 < alpha;
+        let futile = !is_pv && !in_check && depth <= PARAMS.fut_depth
+            && static_eval + PARAMS.fut_margin * depth as Score + PARAMS.fut_base < alpha;
 
         for i in 0..list.len {
             let m = list[i];
