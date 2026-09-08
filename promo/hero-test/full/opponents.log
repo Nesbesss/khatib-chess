@@ -1,0 +1,1205 @@
+00:01.061  blend            | Read blend: "/Users/nesbes/chess/promo/hero-test/full/opponents.blend"
+00:01.093  render           | Rendering animation (frames 1..120)
+00:01.108  render           | Rendering frame 1
+00:01.108  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:01.108  render           | Engine: EEVEE
+00:09.879  render           | Fra: 1 | Rendering 1 / 32 samples
+Blender 5.2.0 LTS (hash fbe6228777e7 built 2026-07-14 01:31:22)
+00:11.611  render           | Fra: 1 | Rendering 25 / 32 samples
+00:12.424  render           | Fra: 1 | Rendering 32 / 32 samples
+00:12.627  render           | Executing compositor
+00:12.627  render           | Fra: 1 | Compositing
+00:13.523  render           | Video append frame 1
+00:13.523  render           | Time: 00:12.41 (Saving: 00:00.11)
+00:13.523  render           | Rendering frame 2
+00:13.524  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:13.524  render           | Engine: EEVEE
+00:13.999  render           | Fra: 2 | Rendering 1 / 32 samples
+00:15.712  render           | Fra: 2 | Rendering 25 / 32 samples
+00:16.488  render           | Fra: 2 | Rendering 32 / 32 samples
+00:16.589  render           | Executing compositor
+00:16.589  render           | Fra: 2 | Compositing
+00:17.769  render           | Video append frame 2
+00:17.770  render           | Time: 00:04.24 (Saving: 00:00.06)
+00:17.770  render           | Rendering frame 3
+00:17.770  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:17.770  render           | Engine: EEVEE
+00:18.222  render           | Fra: 3 | Rendering 1 / 32 samples
+00:20.184  render           | Fra: 3 | Rendering 25 / 32 samples
+00:21.091  render           | Fra: 3 | Rendering 32 / 32 samples
+00:21.237  render           | Executing compositor
+00:21.237  render           | Fra: 3 | Compositing
+00:22.157  render           | Video append frame 3
+00:22.157  render           | Time: 00:04.38 (Saving: 00:00.04)
+00:22.157  render           | Rendering frame 4
+00:22.158  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:22.158  render           | Engine: EEVEE
+00:22.527  render           | Fra: 4 | Rendering 1 / 32 samples
+00:24.427  render           | Fra: 4 | Rendering 25 / 32 samples
+00:24.927  render           | Fra: 4 | Rendering 32 / 32 samples
+00:25.104  render           | Executing compositor
+00:25.105  render           | Fra: 4 | Compositing
+00:26.031  render           | Video append frame 4
+00:26.032  render           | Time: 00:03.87 (Saving: 00:00.09)
+00:26.032  render           | Rendering frame 5
+00:26.038  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:26.038  render           | Engine: EEVEE
+00:26.513  render           | Fra: 5 | Rendering 1 / 32 samples
+00:29.030  render           | Fra: 5 | Rendering 25 / 32 samples
+00:29.755  render           | Fra: 5 | Rendering 32 / 32 samples
+00:29.884  render           | Executing compositor
+00:29.886  render           | Fra: 5 | Compositing
+00:30.666  render           | Video append frame 5
+00:30.666  render           | Time: 00:04.62 (Saving: 00:00.04)
+00:30.666  render           | Rendering frame 6
+00:30.667  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:30.667  render           | Engine: EEVEE
+00:30.933  render           | Fra: 6 | Rendering 1 / 32 samples
+00:33.423  render           | Fra: 6 | Rendering 25 / 32 samples
+00:34.170  render           | Fra: 6 | Rendering 32 / 32 samples
+00:34.253  render           | Executing compositor
+00:34.253  render           | Fra: 6 | Compositing
+00:34.971  render           | Video append frame 6
+00:34.971  render           | Time: 00:04.30 (Saving: 00:00.03)
+00:34.971  render           | Rendering frame 7
+00:34.972  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:34.973  render           | Engine: EEVEE
+00:35.264  render           | Fra: 7 | Rendering 1 / 32 samples
+00:37.739  render           | Fra: 7 | Rendering 25 / 32 samples
+00:38.267  render           | Fra: 7 | Rendering 32 / 32 samples
+00:38.391  render           | Executing compositor
+00:38.391  render           | Fra: 7 | Compositing
+00:39.299  render           | Video append frame 7
+00:39.299  render           | Time: 00:04.32 (Saving: 00:00.08)
+00:39.299  render           | Rendering frame 8
+00:39.299  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:39.299  render           | Engine: EEVEE
+00:39.730  render           | Fra: 8 | Rendering 1 / 32 samples
+00:42.137  render           | Fra: 8 | Rendering 25 / 32 samples
+00:42.980  render           | Fra: 8 | Rendering 32 / 32 samples
+00:43.112  render           | Executing compositor
+00:43.112  render           | Fra: 8 | Compositing
+00:43.846  render           | Video append frame 8
+00:43.846  render           | Time: 00:04.54 (Saving: 00:00.05)
+00:43.846  render           | Rendering frame 9
+00:43.847  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:43.847  render           | Engine: EEVEE
+00:44.176  render           | Fra: 9 | Rendering 1 / 32 samples
+00:46.582  render           | Fra: 9 | Rendering 25 / 32 samples
+00:47.495  render           | Fra: 9 | Rendering 32 / 32 samples
+00:47.581  render           | Executing compositor
+00:47.581  render           | Fra: 9 | Compositing
+00:48.149  render           | Video append frame 9
+00:48.149  render           | Time: 00:04.30 (Saving: 00:00.02)
+00:48.149  render           | Rendering frame 10
+00:48.150  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:48.150  render           | Engine: EEVEE
+00:48.314  render           | Fra: 10 | Rendering 1 / 32 samples
+00:50.607  render           | Fra: 10 | Rendering 25 / 32 samples
+00:51.450  render           | Fra: 10 | Rendering 32 / 32 samples
+00:51.596  render           | Executing compositor
+00:51.596  render           | Fra: 10 | Compositing
+00:52.442  render           | Video append frame 10
+00:52.442  render           | Time: 00:04.29 (Saving: 00:00.03)
+00:52.442  render           | Rendering frame 11
+00:52.443  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:52.443  render           | Engine: EEVEE
+00:52.701  render           | Fra: 11 | Rendering 1 / 32 samples
+00:54.944  render           | Fra: 11 | Rendering 25 / 32 samples
+00:55.431  render           | Fra: 11 | Rendering 32 / 32 samples
+00:55.884  render           | Executing compositor
+00:55.885  render           | Fra: 11 | Compositing
+00:58.603  render           | Video append frame 11
+00:58.603  render           | Time: 00:06.16 (Saving: 00:00.12)
+00:58.603  render           | Rendering frame 12
+00:58.605  render           | Start rendering: KHATIB / opponents, ViewLayer
+00:58.605  render           | Engine: EEVEE
+00:59.256  render           | Fra: 12 | Rendering 1 / 32 samples
+01:01.387  render           | Fra: 12 | Rendering 25 / 32 samples
+01:02.202  render           | Fra: 12 | Rendering 32 / 32 samples
+01:02.333  render           | Executing compositor
+01:02.333  render           | Fra: 12 | Compositing
+01:03.042  render           | Video append frame 12
+01:03.042  render           | Time: 00:04.43 (Saving: 00:00.03)
+01:03.042  render           | Rendering frame 13
+01:03.043  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:03.043  render           | Engine: EEVEE
+01:03.484  render           | Fra: 13 | Rendering 1 / 32 samples
+01:05.563  render           | Fra: 13 | Rendering 25 / 32 samples
+01:06.539  render           | Fra: 13 | Rendering 32 / 32 samples
+01:06.634  render           | Executing compositor
+01:06.634  render           | Fra: 13 | Compositing
+01:07.370  render           | Video append frame 13
+01:07.370  render           | Time: 00:04.32 (Saving: 00:00.04)
+01:07.370  render           | Rendering frame 14
+01:07.370  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:07.370  render           | Engine: EEVEE
+01:07.578  render           | Fra: 14 | Rendering 1 / 32 samples
+01:10.087  render           | Fra: 14 | Rendering 25 / 32 samples
+01:11.065  render           | Fra: 14 | Rendering 32 / 32 samples
+01:11.196  render           | Executing compositor
+01:11.196  render           | Fra: 14 | Compositing
+01:11.759  render           | Video append frame 14
+01:11.759  render           | Time: 00:04.38 (Saving: 00:00.03)
+01:11.759  render           | Rendering frame 15
+01:11.760  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:11.760  render           | Engine: EEVEE
+01:12.014  render           | Fra: 15 | Rendering 1 / 32 samples
+01:14.184  render           | Fra: 15 | Rendering 25 / 32 samples
+01:15.075  render           | Fra: 15 | Rendering 32 / 32 samples
+01:15.192  render           | Executing compositor
+01:15.193  render           | Fra: 15 | Compositing
+01:15.892  render           | Video append frame 15
+01:15.892  render           | Time: 00:04.13 (Saving: 00:00.04)
+01:15.893  render           | Rendering frame 16
+01:15.893  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:15.893  render           | Engine: EEVEE
+01:16.089  render           | Fra: 16 | Rendering 1 / 32 samples
+01:18.270  render           | Fra: 16 | Rendering 25 / 32 samples
+01:19.198  render           | Fra: 16 | Rendering 32 / 32 samples
+01:19.341  render           | Executing compositor
+01:19.341  render           | Fra: 16 | Compositing
+01:20.229  render           | Video append frame 16
+01:20.229  render           | Time: 00:04.33 (Saving: 00:00.05)
+01:20.229  render           | Rendering frame 17
+01:20.230  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:20.230  render           | Engine: EEVEE
+01:20.646  render           | Fra: 17 | Rendering 1 / 32 samples
+01:22.858  render           | Fra: 17 | Rendering 25 / 32 samples
+01:23.819  render           | Fra: 17 | Rendering 32 / 32 samples
+01:23.926  render           | Executing compositor
+01:23.926  render           | Fra: 17 | Compositing
+01:24.640  render           | Video append frame 17
+01:24.640  render           | Time: 00:04.41 (Saving: 00:00.03)
+01:24.640  render           | Rendering frame 18
+01:24.641  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:24.641  render           | Engine: EEVEE
+01:24.879  render           | Fra: 18 | Rendering 1 / 32 samples
+01:27.232  render           | Fra: 18 | Rendering 25 / 32 samples
+01:28.211  render           | Fra: 18 | Rendering 32 / 32 samples
+01:28.322  render           | Executing compositor
+01:28.322  render           | Fra: 18 | Compositing
+01:28.956  render           | Video append frame 18
+01:28.956  render           | Time: 00:04.31 (Saving: 00:00.03)
+01:28.956  render           | Rendering frame 19
+01:28.956  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:28.956  render           | Engine: EEVEE
+01:29.222  render           | Fra: 19 | Rendering 1 / 32 samples
+01:31.394  render           | Fra: 19 | Rendering 25 / 32 samples
+01:32.281  render           | Fra: 19 | Rendering 32 / 32 samples
+01:32.411  render           | Executing compositor
+01:32.411  render           | Fra: 19 | Compositing
+01:33.094  render           | Video append frame 19
+01:33.094  render           | Time: 00:04.13 (Saving: 00:00.03)
+01:33.094  render           | Rendering frame 20
+01:33.094  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:33.094  render           | Engine: EEVEE
+01:33.299  render           | Fra: 20 | Rendering 1 / 32 samples
+01:35.565  render           | Fra: 20 | Rendering 25 / 32 samples
+01:36.460  render           | Fra: 20 | Rendering 32 / 32 samples
+01:36.579  render           | Executing compositor
+01:36.579  render           | Fra: 20 | Compositing
+01:37.206  render           | Video append frame 20
+01:37.206  render           | Time: 00:04.11 (Saving: 00:00.03)
+01:37.206  render           | Rendering frame 21
+01:37.207  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:37.207  render           | Engine: EEVEE
+01:37.543  render           | Fra: 21 | Rendering 1 / 32 samples
+01:39.667  render           | Fra: 21 | Rendering 25 / 32 samples
+01:40.294  render           | Fra: 21 | Rendering 32 / 32 samples
+01:40.416  render           | Executing compositor
+01:40.416  render           | Fra: 21 | Compositing
+01:41.199  render           | Video append frame 21
+01:41.199  render           | Time: 00:03.99 (Saving: 00:00.03)
+01:41.199  render           | Rendering frame 22
+01:41.202  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:41.202  render           | Engine: EEVEE
+01:41.475  render           | Fra: 22 | Rendering 1 / 32 samples
+01:44.017  render           | Fra: 22 | Rendering 25 / 32 samples
+01:44.903  render           | Fra: 22 | Rendering 32 / 32 samples
+01:45.010  render           | Executing compositor
+01:45.010  render           | Fra: 22 | Compositing
+01:45.629  render           | Video append frame 22
+01:45.629  render           | Time: 00:04.42 (Saving: 00:00.03)
+01:45.629  render           | Rendering frame 23
+01:45.630  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:45.630  render           | Engine: EEVEE
+01:45.839  render           | Fra: 23 | Rendering 1 / 32 samples
+01:48.240  render           | Fra: 23 | Rendering 25 / 32 samples
+01:49.097  render           | Fra: 23 | Rendering 32 / 32 samples
+01:49.222  render           | Executing compositor
+01:49.222  render           | Fra: 23 | Compositing
+01:49.965  render           | Video append frame 23
+01:49.965  render           | Time: 00:04.33 (Saving: 00:00.03)
+01:49.965  render           | Rendering frame 24
+01:49.966  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:49.966  render           | Engine: EEVEE
+01:50.279  render           | Fra: 24 | Rendering 1 / 32 samples
+01:52.561  render           | Fra: 24 | Rendering 25 / 32 samples
+01:53.146  render           | Fra: 24 | Rendering 32 / 32 samples
+01:53.313  render           | Executing compositor
+01:53.313  render           | Fra: 24 | Compositing
+01:54.138  render           | Video append frame 24
+01:54.138  render           | Time: 00:04.17 (Saving: 00:00.03)
+01:54.138  render           | Rendering frame 25
+01:54.139  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:54.139  render           | Engine: EEVEE
+01:54.428  render           | Fra: 25 | Rendering 1 / 32 samples
+01:57.027  render           | Fra: 25 | Rendering 25 / 32 samples
+01:57.791  render           | Fra: 25 | Rendering 32 / 32 samples
+01:57.919  render           | Executing compositor
+01:57.919  render           | Fra: 25 | Compositing
+01:58.544  render           | Video append frame 25
+01:58.544  render           | Time: 00:04.40 (Saving: 00:00.03)
+01:58.544  render           | Rendering frame 26
+01:58.544  render           | Start rendering: KHATIB / opponents, ViewLayer
+01:58.544  render           | Engine: EEVEE
+01:58.779  render           | Fra: 26 | Rendering 1 / 32 samples
+02:01.227  render           | Fra: 26 | Rendering 25 / 32 samples
+02:01.731  render           | Fra: 26 | Rendering 32 / 32 samples
+02:01.858  render           | Executing compositor
+02:01.858  render           | Fra: 26 | Compositing
+02:02.615  render           | Video append frame 26
+02:02.618  render           | Time: 00:04.07 (Saving: 00:00.05)
+02:02.618  render           | Rendering frame 27
+02:02.619  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:02.619  render           | Engine: EEVEE
+02:02.868  render           | Fra: 27 | Rendering 1 / 32 samples
+02:05.436  render           | Fra: 27 | Rendering 25 / 32 samples
+02:06.127  render           | Fra: 27 | Rendering 32 / 32 samples
+02:06.239  render           | Executing compositor
+02:06.239  render           | Fra: 27 | Compositing
+02:06.845  render           | Video append frame 27
+02:06.846  render           | Time: 00:04.22 (Saving: 00:00.03)
+02:06.846  render           | Rendering frame 28
+02:06.846  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:06.846  render           | Engine: EEVEE
+02:07.108  render           | Fra: 28 | Rendering 1 / 32 samples
+02:09.626  render           | Fra: 28 | Rendering 25 / 32 samples
+02:10.095  render           | Fra: 28 | Rendering 32 / 32 samples
+02:10.229  render           | Executing compositor
+02:10.233  render           | Fra: 28 | Compositing
+02:11.124  render           | Video append frame 28
+02:11.124  render           | Time: 00:04.27 (Saving: 00:00.05)
+02:11.124  render           | Rendering frame 29
+02:11.125  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:11.127  render           | Engine: EEVEE
+02:11.569  render           | Fra: 29 | Rendering 1 / 32 samples
+02:14.150  render           | Fra: 29 | Rendering 25 / 32 samples
+02:14.777  render           | Fra: 29 | Rendering 32 / 32 samples
+02:14.913  render           | Executing compositor
+02:14.913  render           | Fra: 29 | Compositing
+02:15.602  render           | Video append frame 29
+02:15.602  render           | Time: 00:04.47 (Saving: 00:00.03)
+02:15.602  render           | Rendering frame 30
+02:15.603  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:15.603  render           | Engine: EEVEE
+02:15.948  render           | Fra: 30 | Rendering 1 / 32 samples
+02:18.391  render           | Fra: 30 | Rendering 25 / 32 samples
+02:19.152  render           | Fra: 30 | Rendering 32 / 32 samples
+02:19.251  render           | Executing compositor
+02:19.251  render           | Fra: 30 | Compositing
+02:19.809  render           | Video append frame 30
+02:19.809  render           | Time: 00:04.20 (Saving: 00:00.03)
+02:19.809  render           | Rendering frame 31
+02:19.810  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:19.810  render           | Engine: EEVEE
+02:20.065  render           | Fra: 31 | Rendering 1 / 32 samples
+02:22.571  render           | Fra: 31 | Rendering 25 / 32 samples
+02:23.022  render           | Fra: 31 | Rendering 32 / 32 samples
+02:23.123  render           | Executing compositor
+02:23.123  render           | Fra: 31 | Compositing
+02:24.481  render           | Video append frame 31
+02:24.481  render           | Time: 00:04.67 (Saving: 00:00.04)
+02:24.481  render           | Rendering frame 32
+02:24.482  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:24.482  render           | Engine: EEVEE
+02:25.107  render           | Fra: 32 | Rendering 1 / 32 samples
+02:27.855  render           | Fra: 32 | Rendering 25 / 32 samples
+02:28.293  render           | Fra: 32 | Rendering 32 / 32 samples
+02:28.457  render           | Executing compositor
+02:28.457  render           | Fra: 32 | Compositing
+02:29.111  render           | Video append frame 32
+02:29.111  render           | Time: 00:04.62 (Saving: 00:00.03)
+02:29.111  render           | Rendering frame 33
+02:29.112  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:29.112  render           | Engine: EEVEE
+02:29.562  render           | Fra: 33 | Rendering 1 / 32 samples
+02:32.003  render           | Fra: 33 | Rendering 25 / 32 samples
+02:32.539  render           | Fra: 33 | Rendering 32 / 32 samples
+02:32.667  render           | Executing compositor
+02:32.667  render           | Fra: 33 | Compositing
+02:33.333  render           | Video append frame 33
+02:33.333  render           | Time: 00:04.22 (Saving: 00:00.03)
+02:33.333  render           | Rendering frame 34
+02:33.334  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:33.334  render           | Engine: EEVEE
+02:33.659  render           | Fra: 34 | Rendering 1 / 32 samples
+02:36.070  render           | Fra: 34 | Rendering 25 / 32 samples
+02:36.616  render           | Fra: 34 | Rendering 32 / 32 samples
+02:36.703  render           | Executing compositor
+02:36.703  render           | Fra: 34 | Compositing
+02:37.474  render           | Video append frame 34
+02:37.474  render           | Time: 00:04.14 (Saving: 00:00.05)
+02:37.474  render           | Rendering frame 35
+02:37.475  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:37.475  render           | Engine: EEVEE
+02:37.792  render           | Fra: 35 | Rendering 1 / 32 samples
+02:40.240  render           | Fra: 35 | Rendering 25 / 32 samples
+02:40.785  render           | Fra: 35 | Rendering 32 / 32 samples
+02:40.916  render           | Executing compositor
+02:40.916  render           | Fra: 35 | Compositing
+02:41.580  render           | Video append frame 35
+02:41.580  render           | Time: 00:04.10 (Saving: 00:00.03)
+02:41.580  render           | Rendering frame 36
+02:41.581  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:41.581  render           | Engine: EEVEE
+02:41.838  render           | Fra: 36 | Rendering 1 / 32 samples
+02:44.258  render           | Fra: 36 | Rendering 25 / 32 samples
+02:44.965  render           | Fra: 36 | Rendering 32 / 32 samples
+02:45.092  render           | Executing compositor
+02:45.092  render           | Fra: 36 | Compositing
+02:45.792  render           | Video append frame 36
+02:45.792  render           | Time: 00:04.21 (Saving: 00:00.07)
+02:45.792  render           | Rendering frame 37
+02:45.792  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:45.792  render           | Engine: EEVEE
+02:46.147  render           | Fra: 37 | Rendering 1 / 32 samples
+02:48.305  render           | Fra: 37 | Rendering 25 / 32 samples
+02:48.745  render           | Fra: 37 | Rendering 32 / 32 samples
+02:48.816  render           | Executing compositor
+02:48.816  render           | Fra: 37 | Compositing
+02:49.429  render           | Video append frame 37
+02:49.429  render           | Time: 00:03.63 (Saving: 00:00.05)
+02:49.429  render           | Rendering frame 38
+02:49.429  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:49.429  render           | Engine: EEVEE
+02:49.503  render           | Fra: 38 | Rendering 1 / 32 samples
+02:51.046  render           | Fra: 38 | Rendering 25 / 32 samples
+02:51.511  render           | Fra: 38 | Rendering 32 / 32 samples
+02:51.560  render           | Executing compositor
+02:51.560  render           | Fra: 38 | Compositing
+02:52.101  render           | Video append frame 38
+02:52.101  render           | Time: 00:02.67 (Saving: 00:00.05)
+02:52.101  render           | Rendering frame 39
+02:52.101  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:52.101  render           | Engine: EEVEE
+02:52.168  render           | Fra: 39 | Rendering 1 / 32 samples
+02:53.690  render           | Fra: 39 | Rendering 25 / 32 samples
+02:54.123  render           | Fra: 39 | Rendering 32 / 32 samples
+02:54.173  render           | Executing compositor
+02:54.173  render           | Fra: 39 | Compositing
+02:54.579  render           | Video append frame 39
+02:54.579  render           | Time: 00:02.47 (Saving: 00:00.04)
+02:54.579  render           | Rendering frame 40
+02:54.579  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:54.579  render           | Engine: EEVEE
+02:54.647  render           | Fra: 40 | Rendering 1 / 32 samples
+02:56.128  render           | Fra: 40 | Rendering 25 / 32 samples
+02:56.561  render           | Fra: 40 | Rendering 32 / 32 samples
+02:56.614  render           | Executing compositor
+02:56.614  render           | Fra: 40 | Compositing
+02:57.060  render           | Video append frame 40
+02:57.060  render           | Time: 00:02.48 (Saving: 00:00.05)
+02:57.060  render           | Rendering frame 41
+02:57.060  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:57.060  render           | Engine: EEVEE
+02:57.128  render           | Fra: 41 | Rendering 1 / 32 samples
+02:58.590  render           | Fra: 41 | Rendering 25 / 32 samples
+02:59.014  render           | Fra: 41 | Rendering 32 / 32 samples
+02:59.065  render           | Executing compositor
+02:59.065  render           | Fra: 41 | Compositing
+02:59.520  render           | Video append frame 41
+02:59.520  render           | Time: 00:02.45 (Saving: 00:00.04)
+02:59.520  render           | Rendering frame 42
+02:59.520  render           | Start rendering: KHATIB / opponents, ViewLayer
+02:59.520  render           | Engine: EEVEE
+02:59.591  render           | Fra: 42 | Rendering 1 / 32 samples
+03:01.070  render           | Fra: 42 | Rendering 25 / 32 samples
+03:01.501  render           | Fra: 42 | Rendering 32 / 32 samples
+03:01.552  render           | Executing compositor
+03:01.552  render           | Fra: 42 | Compositing
+03:01.972  render           | Video append frame 42
+03:01.972  render           | Time: 00:02.45 (Saving: 00:00.04)
+03:01.972  render           | Rendering frame 43
+03:01.972  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:01.972  render           | Engine: EEVEE
+03:02.043  render           | Fra: 43 | Rendering 1 / 32 samples
+03:03.527  render           | Fra: 43 | Rendering 25 / 32 samples
+03:03.957  render           | Fra: 43 | Rendering 32 / 32 samples
+03:04.013  render           | Executing compositor
+03:04.013  render           | Fra: 43 | Compositing
+03:04.425  render           | Video append frame 43
+03:04.425  render           | Time: 00:02.45 (Saving: 00:00.02)
+03:04.425  render           | Rendering frame 44
+03:04.425  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:04.425  render           | Engine: EEVEE
+03:04.494  render           | Fra: 44 | Rendering 1 / 32 samples
+03:05.961  render           | Fra: 44 | Rendering 25 / 32 samples
+03:06.388  render           | Fra: 44 | Rendering 32 / 32 samples
+03:06.439  render           | Executing compositor
+03:06.439  render           | Fra: 44 | Compositing
+03:06.838  render           | Video append frame 44
+03:06.838  render           | Time: 00:02.41 (Saving: 00:00.02)
+03:06.838  render           | Rendering frame 45
+03:06.839  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:06.839  render           | Engine: EEVEE
+03:06.906  render           | Fra: 45 | Rendering 1 / 32 samples
+03:08.375  render           | Fra: 45 | Rendering 25 / 32 samples
+03:08.811  render           | Fra: 45 | Rendering 32 / 32 samples
+03:08.868  render           | Executing compositor
+03:08.868  render           | Fra: 45 | Compositing
+03:09.261  render           | Video append frame 45
+03:09.261  render           | Time: 00:02.42 (Saving: 00:00.02)
+03:09.261  render           | Rendering frame 46
+03:09.261  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:09.261  render           | Engine: EEVEE
+03:09.330  render           | Fra: 46 | Rendering 1 / 32 samples
+03:10.808  render           | Fra: 46 | Rendering 25 / 32 samples
+03:11.238  render           | Fra: 46 | Rendering 32 / 32 samples
+03:11.294  render           | Executing compositor
+03:11.294  render           | Fra: 46 | Compositing
+03:11.680  render           | Video append frame 46
+03:11.680  render           | Time: 00:02.41 (Saving: 00:00.02)
+03:11.680  render           | Rendering frame 47
+03:11.680  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:11.680  render           | Engine: EEVEE
+03:11.751  render           | Fra: 47 | Rendering 1 / 32 samples
+03:13.218  render           | Fra: 47 | Rendering 25 / 32 samples
+03:13.648  render           | Fra: 47 | Rendering 32 / 32 samples
+03:13.702  render           | Executing compositor
+03:13.702  render           | Fra: 47 | Compositing
+03:14.107  render           | Video append frame 47
+03:14.107  render           | Time: 00:02.42 (Saving: 00:00.02)
+03:14.107  render           | Rendering frame 48
+03:14.107  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:14.107  render           | Engine: EEVEE
+03:14.177  render           | Fra: 48 | Rendering 1 / 32 samples
+03:15.658  render           | Fra: 48 | Rendering 25 / 32 samples
+03:16.089  render           | Fra: 48 | Rendering 32 / 32 samples
+03:16.151  render           | Executing compositor
+03:16.151  render           | Fra: 48 | Compositing
+03:16.562  render           | Video append frame 48
+03:16.562  render           | Time: 00:02.45 (Saving: 00:00.02)
+03:16.562  render           | Rendering frame 49
+03:16.562  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:16.562  render           | Engine: EEVEE
+03:16.632  render           | Fra: 49 | Rendering 1 / 32 samples
+03:18.099  render           | Fra: 49 | Rendering 25 / 32 samples
+03:18.524  render           | Fra: 49 | Rendering 32 / 32 samples
+03:18.577  render           | Executing compositor
+03:18.577  render           | Fra: 49 | Compositing
+03:18.977  render           | Video append frame 49
+03:18.977  render           | Time: 00:02.41 (Saving: 00:00.02)
+03:18.977  render           | Rendering frame 50
+03:18.977  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:18.977  render           | Engine: EEVEE
+03:19.045  render           | Fra: 50 | Rendering 1 / 32 samples
+03:20.517  render           | Fra: 50 | Rendering 25 / 32 samples
+03:20.946  render           | Fra: 50 | Rendering 32 / 32 samples
+03:20.995  render           | Executing compositor
+03:20.995  render           | Fra: 50 | Compositing
+03:21.397  render           | Video append frame 50
+03:21.397  render           | Time: 00:02.42 (Saving: 00:00.02)
+03:21.397  render           | Rendering frame 51
+03:21.397  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:21.397  render           | Engine: EEVEE
+03:21.465  render           | Fra: 51 | Rendering 1 / 32 samples
+03:22.930  render           | Fra: 51 | Rendering 25 / 32 samples
+03:23.360  render           | Fra: 51 | Rendering 32 / 32 samples
+03:23.411  render           | Executing compositor
+03:23.411  render           | Fra: 51 | Compositing
+03:23.787  render           | Video append frame 51
+03:23.787  render           | Time: 00:02.39 (Saving: 00:00.02)
+03:23.787  render           | Rendering frame 52
+03:23.788  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:23.788  render           | Engine: EEVEE
+03:23.857  render           | Fra: 52 | Rendering 1 / 32 samples
+03:25.335  render           | Fra: 52 | Rendering 25 / 32 samples
+03:25.768  render           | Fra: 52 | Rendering 32 / 32 samples
+03:25.826  render           | Executing compositor
+03:25.826  render           | Fra: 52 | Compositing
+03:26.232  render           | Video append frame 52
+03:26.232  render           | Time: 00:02.44 (Saving: 00:00.02)
+03:26.232  render           | Rendering frame 53
+03:26.233  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:26.233  render           | Engine: EEVEE
+03:26.301  render           | Fra: 53 | Rendering 1 / 32 samples
+03:27.760  render           | Fra: 53 | Rendering 25 / 32 samples
+03:28.186  render           | Fra: 53 | Rendering 32 / 32 samples
+03:28.239  render           | Executing compositor
+03:28.239  render           | Fra: 53 | Compositing
+03:28.731  render           | Video append frame 53
+03:28.731  render           | Time: 00:02.50 (Saving: 00:00.02)
+03:28.731  render           | Rendering frame 54
+03:28.731  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:28.731  render           | Engine: EEVEE
+03:28.801  render           | Fra: 54 | Rendering 1 / 32 samples
+03:30.384  render           | Fra: 54 | Rendering 25 / 32 samples
+03:30.860  render           | Fra: 54 | Rendering 32 / 32 samples
+03:30.938  render           | Executing compositor
+03:30.938  render           | Fra: 54 | Compositing
+03:32.421  render           | Video append frame 54
+03:32.421  render           | Time: 00:03.69 (Saving: 00:00.19)
+03:32.421  render           | Rendering frame 55
+03:32.433  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:32.433  render           | Engine: EEVEE
+03:33.729  render           | Fra: 55 | Rendering 1 / 32 samples
+03:35.494  render           | Fra: 55 | Rendering 25 / 32 samples
+03:35.950  render           | Fra: 55 | Rendering 32 / 32 samples
+03:36.030  render           | Executing compositor
+03:36.030  render           | Fra: 55 | Compositing
+03:36.639  render           | Video append frame 55
+03:36.640  render           | Time: 00:04.21 (Saving: 00:00.04)
+03:36.640  render           | Rendering frame 56
+03:36.644  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:36.644  render           | Engine: EEVEE
+03:36.841  render           | Fra: 56 | Rendering 1 / 32 samples
+03:38.345  render           | Fra: 56 | Rendering 25 / 32 samples
+03:38.780  render           | Fra: 56 | Rendering 32 / 32 samples
+03:38.846  render           | Executing compositor
+03:38.846  render           | Fra: 56 | Compositing
+03:39.303  render           | Video append frame 56
+03:39.303  render           | Time: 00:02.66 (Saving: 00:00.03)
+03:39.303  render           | Rendering frame 57
+03:39.304  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:39.304  render           | Engine: EEVEE
+03:39.380  render           | Fra: 57 | Rendering 1 / 32 samples
+03:40.868  render           | Fra: 57 | Rendering 25 / 32 samples
+03:41.293  render           | Fra: 57 | Rendering 32 / 32 samples
+03:41.344  render           | Executing compositor
+03:41.344  render           | Fra: 57 | Compositing
+03:41.755  render           | Video append frame 57
+03:41.755  render           | Time: 00:02.45 (Saving: 00:00.03)
+03:41.755  render           | Rendering frame 58
+03:41.755  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:41.755  render           | Engine: EEVEE
+03:41.831  render           | Fra: 58 | Rendering 1 / 32 samples
+03:43.350  render           | Fra: 58 | Rendering 25 / 32 samples
+03:43.781  render           | Fra: 58 | Rendering 32 / 32 samples
+03:43.842  render           | Executing compositor
+03:43.842  render           | Fra: 58 | Compositing
+03:44.249  render           | Video append frame 58
+03:44.249  render           | Time: 00:02.49 (Saving: 00:00.02)
+03:44.249  render           | Rendering frame 59
+03:44.249  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:44.249  render           | Engine: EEVEE
+03:44.325  render           | Fra: 59 | Rendering 1 / 32 samples
+03:45.848  render           | Fra: 59 | Rendering 25 / 32 samples
+03:46.283  render           | Fra: 59 | Rendering 32 / 32 samples
+03:46.347  render           | Executing compositor
+03:46.347  render           | Fra: 59 | Compositing
+03:46.752  render           | Video append frame 59
+03:46.752  render           | Time: 00:02.50 (Saving: 00:00.02)
+03:46.752  render           | Rendering frame 60
+03:46.752  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:46.752  render           | Engine: EEVEE
+03:46.822  render           | Fra: 60 | Rendering 1 / 32 samples
+03:48.310  render           | Fra: 60 | Rendering 25 / 32 samples
+03:48.738  render           | Fra: 60 | Rendering 32 / 32 samples
+03:48.793  render           | Executing compositor
+03:48.793  render           | Fra: 60 | Compositing
+03:49.182  render           | Video append frame 60
+03:49.182  render           | Time: 00:02.43 (Saving: 00:00.02)
+03:49.182  render           | Rendering frame 61
+03:49.182  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:49.182  render           | Engine: EEVEE
+03:49.252  render           | Fra: 61 | Rendering 1 / 32 samples
+03:50.753  render           | Fra: 61 | Rendering 25 / 32 samples
+03:51.271  render           | Fra: 61 | Rendering 32 / 32 samples
+03:51.331  render           | Executing compositor
+03:51.331  render           | Fra: 61 | Compositing
+03:51.799  render           | Video append frame 61
+03:51.799  render           | Time: 00:02.61 (Saving: 00:00.02)
+03:51.799  render           | Rendering frame 62
+03:51.799  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:51.799  render           | Engine: EEVEE
+03:51.929  render           | Fra: 62 | Rendering 1 / 32 samples
+03:53.440  render           | Fra: 62 | Rendering 25 / 32 samples
+03:53.873  render           | Fra: 62 | Rendering 32 / 32 samples
+03:53.929  render           | Executing compositor
+03:53.929  render           | Fra: 62 | Compositing
+03:54.325  render           | Video append frame 62
+03:54.325  render           | Time: 00:02.52 (Saving: 00:00.02)
+03:54.325  render           | Rendering frame 63
+03:54.325  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:54.325  render           | Engine: EEVEE
+03:54.398  render           | Fra: 63 | Rendering 1 / 32 samples
+03:55.883  render           | Fra: 63 | Rendering 25 / 32 samples
+03:56.312  render           | Fra: 63 | Rendering 32 / 32 samples
+03:56.371  render           | Executing compositor
+03:56.371  render           | Fra: 63 | Compositing
+03:56.776  render           | Video append frame 63
+03:56.776  render           | Time: 00:02.45 (Saving: 00:00.02)
+03:56.776  render           | Rendering frame 64
+03:56.776  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:56.776  render           | Engine: EEVEE
+03:56.851  render           | Fra: 64 | Rendering 1 / 32 samples
+03:58.384  render           | Fra: 64 | Rendering 25 / 32 samples
+03:58.829  render           | Fra: 64 | Rendering 32 / 32 samples
+03:58.888  render           | Executing compositor
+03:58.888  render           | Fra: 64 | Compositing
+03:59.285  render           | Video append frame 64
+03:59.285  render           | Time: 00:02.50 (Saving: 00:00.02)
+03:59.285  render           | Rendering frame 65
+03:59.285  render           | Start rendering: KHATIB / opponents, ViewLayer
+03:59.285  render           | Engine: EEVEE
+03:59.362  render           | Fra: 65 | Rendering 1 / 32 samples
+04:00.853  render           | Fra: 65 | Rendering 25 / 32 samples
+04:01.285  render           | Fra: 65 | Rendering 32 / 32 samples
+04:01.338  render           | Executing compositor
+04:01.338  render           | Fra: 65 | Compositing
+04:01.738  render           | Video append frame 65
+04:01.738  render           | Time: 00:02.45 (Saving: 00:00.02)
+04:01.738  render           | Rendering frame 66
+04:01.738  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:01.738  render           | Engine: EEVEE
+04:01.809  render           | Fra: 66 | Rendering 1 / 32 samples
+04:03.320  render           | Fra: 66 | Rendering 25 / 32 samples
+04:03.758  render           | Fra: 66 | Rendering 32 / 32 samples
+04:03.813  render           | Executing compositor
+04:03.813  render           | Fra: 66 | Compositing
+04:04.213  render           | Video append frame 66
+04:04.213  render           | Time: 00:02.47 (Saving: 00:00.02)
+04:04.213  render           | Rendering frame 67
+04:04.213  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:04.213  render           | Engine: EEVEE
+04:04.285  render           | Fra: 67 | Rendering 1 / 32 samples
+04:05.761  render           | Fra: 67 | Rendering 25 / 32 samples
+04:06.200  render           | Fra: 67 | Rendering 32 / 32 samples
+04:06.273  render           | Executing compositor
+04:06.273  render           | Fra: 67 | Compositing
+04:06.694  render           | Video append frame 67
+04:06.694  render           | Time: 00:02.48 (Saving: 00:00.02)
+04:06.694  render           | Rendering frame 68
+04:06.694  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:06.694  render           | Engine: EEVEE
+04:06.764  render           | Fra: 68 | Rendering 1 / 32 samples
+04:08.300  render           | Fra: 68 | Rendering 25 / 32 samples
+04:08.746  render           | Fra: 68 | Rendering 32 / 32 samples
+04:08.806  render           | Executing compositor
+04:08.806  render           | Fra: 68 | Compositing
+04:09.215  render           | Video append frame 68
+04:09.215  render           | Time: 00:02.52 (Saving: 00:00.02)
+04:09.215  render           | Rendering frame 69
+04:09.215  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:09.215  render           | Engine: EEVEE
+04:09.291  render           | Fra: 69 | Rendering 1 / 32 samples
+04:10.768  render           | Fra: 69 | Rendering 25 / 32 samples
+04:11.196  render           | Fra: 69 | Rendering 32 / 32 samples
+04:11.246  render           | Executing compositor
+04:11.247  render           | Fra: 69 | Compositing
+04:11.631  render           | Video append frame 69
+04:11.631  render           | Time: 00:02.41 (Saving: 00:00.02)
+04:11.631  render           | Rendering frame 70
+04:11.631  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:11.631  render           | Engine: EEVEE
+04:11.700  render           | Fra: 70 | Rendering 1 / 32 samples
+04:13.208  render           | Fra: 70 | Rendering 25 / 32 samples
+04:13.646  render           | Fra: 70 | Rendering 32 / 32 samples
+04:13.699  render           | Executing compositor
+04:13.699  render           | Fra: 70 | Compositing
+04:14.094  render           | Video append frame 70
+04:14.094  render           | Time: 00:02.46 (Saving: 00:00.02)
+04:14.094  render           | Rendering frame 71
+04:14.094  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:14.094  render           | Engine: EEVEE
+04:14.163  render           | Fra: 71 | Rendering 1 / 32 samples
+04:15.644  render           | Fra: 71 | Rendering 25 / 32 samples
+04:16.075  render           | Fra: 71 | Rendering 32 / 32 samples
+04:16.131  render           | Executing compositor
+04:16.131  render           | Fra: 71 | Compositing
+04:16.528  render           | Video append frame 71
+04:16.528  render           | Time: 00:02.43 (Saving: 00:00.01)
+04:16.528  render           | Rendering frame 72
+04:16.528  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:16.528  render           | Engine: EEVEE
+04:16.600  render           | Fra: 72 | Rendering 1 / 32 samples
+04:18.120  render           | Fra: 72 | Rendering 25 / 32 samples
+04:18.563  render           | Fra: 72 | Rendering 32 / 32 samples
+04:18.619  render           | Executing compositor
+04:18.619  render           | Fra: 72 | Compositing
+04:19.027  render           | Video append frame 72
+04:19.027  render           | Time: 00:02.49 (Saving: 00:00.02)
+04:19.027  render           | Rendering frame 73
+04:19.027  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:19.028  render           | Engine: EEVEE
+04:19.103  render           | Fra: 73 | Rendering 1 / 32 samples
+04:20.572  render           | Fra: 73 | Rendering 25 / 32 samples
+04:21.004  render           | Fra: 73 | Rendering 32 / 32 samples
+04:21.059  render           | Executing compositor
+04:21.059  render           | Fra: 73 | Compositing
+04:21.459  render           | Video append frame 73
+04:21.459  render           | Time: 00:02.43 (Saving: 00:00.02)
+04:21.459  render           | Rendering frame 74
+04:21.460  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:21.460  render           | Engine: EEVEE
+04:21.534  render           | Fra: 74 | Rendering 1 / 32 samples
+04:23.065  render           | Fra: 74 | Rendering 25 / 32 samples
+04:23.502  render           | Fra: 74 | Rendering 32 / 32 samples
+04:23.557  render           | Executing compositor
+04:23.557  render           | Fra: 74 | Compositing
+04:23.947  render           | Video append frame 74
+04:23.947  render           | Time: 00:02.48 (Saving: 00:00.02)
+04:23.947  render           | Rendering frame 75
+04:23.947  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:23.947  render           | Engine: EEVEE
+04:24.018  render           | Fra: 75 | Rendering 1 / 32 samples
+04:25.501  render           | Fra: 75 | Rendering 25 / 32 samples
+04:25.934  render           | Fra: 75 | Rendering 32 / 32 samples
+04:25.984  render           | Executing compositor
+04:25.984  render           | Fra: 75 | Compositing
+04:26.381  render           | Video append frame 75
+04:26.381  render           | Time: 00:02.43 (Saving: 00:00.02)
+04:26.381  render           | Rendering frame 76
+04:26.381  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:26.381  render           | Engine: EEVEE
+04:26.450  render           | Fra: 76 | Rendering 1 / 32 samples
+04:27.968  render           | Fra: 76 | Rendering 25 / 32 samples
+04:28.415  render           | Fra: 76 | Rendering 32 / 32 samples
+04:28.471  render           | Executing compositor
+04:28.471  render           | Fra: 76 | Compositing
+04:28.881  render           | Video append frame 76
+04:28.882  render           | Time: 00:02.50 (Saving: 00:00.02)
+04:28.882  render           | Rendering frame 77
+04:28.882  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:28.882  render           | Engine: EEVEE
+04:28.952  render           | Fra: 77 | Rendering 1 / 32 samples
+04:30.446  render           | Fra: 77 | Rendering 25 / 32 samples
+04:30.880  render           | Fra: 77 | Rendering 32 / 32 samples
+04:30.936  render           | Executing compositor
+04:30.936  render           | Fra: 77 | Compositing
+04:31.338  render           | Video append frame 77
+04:31.338  render           | Time: 00:02.45 (Saving: 00:00.02)
+04:31.338  render           | Rendering frame 78
+04:31.338  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:31.338  render           | Engine: EEVEE
+04:31.417  render           | Fra: 78 | Rendering 1 / 32 samples
+04:32.948  render           | Fra: 78 | Rendering 25 / 32 samples
+04:33.393  render           | Fra: 78 | Rendering 32 / 32 samples
+04:33.448  render           | Executing compositor
+04:33.448  render           | Fra: 78 | Compositing
+04:33.833  render           | Video append frame 78
+04:33.833  render           | Time: 00:02.49 (Saving: 00:00.02)
+04:33.833  render           | Rendering frame 79
+04:33.833  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:33.833  render           | Engine: EEVEE
+04:33.901  render           | Fra: 79 | Rendering 1 / 32 samples
+04:35.389  render           | Fra: 79 | Rendering 25 / 32 samples
+04:35.827  render           | Fra: 79 | Rendering 32 / 32 samples
+04:35.880  render           | Executing compositor
+04:35.880  render           | Fra: 79 | Compositing
+04:36.655  render           | Video append frame 79
+04:36.655  render           | Time: 00:02.82 (Saving: 00:00.09)
+04:36.655  render           | Rendering frame 80
+04:36.655  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:36.655  render           | Engine: EEVEE
+04:37.292  render           | Fra: 80 | Rendering 1 / 32 samples
+04:38.948  render           | Fra: 80 | Rendering 25 / 32 samples
+04:39.396  render           | Fra: 80 | Rendering 32 / 32 samples
+04:39.473  render           | Executing compositor
+04:39.473  render           | Fra: 80 | Compositing
+04:40.037  render           | Video append frame 80
+04:40.037  render           | Time: 00:03.38 (Saving: 00:00.03)
+04:40.037  render           | Rendering frame 81
+04:40.038  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:40.038  render           | Engine: EEVEE
+04:40.202  render           | Fra: 81 | Rendering 1 / 32 samples
+04:41.756  render           | Fra: 81 | Rendering 25 / 32 samples
+04:42.205  render           | Fra: 81 | Rendering 32 / 32 samples
+04:42.273  render           | Executing compositor
+04:42.273  render           | Fra: 81 | Compositing
+04:44.087  render           | Video append frame 81
+04:44.087  render           | Time: 00:04.04 (Saving: 00:00.05)
+04:44.087  render           | Rendering frame 82
+04:44.088  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:44.088  render           | Engine: EEVEE
+04:44.737  render           | Fra: 82 | Rendering 1 / 32 samples
+04:46.301  render           | Fra: 82 | Rendering 25 / 32 samples
+04:46.739  render           | Fra: 82 | Rendering 32 / 32 samples
+04:46.809  render           | Executing compositor
+04:46.809  render           | Fra: 82 | Compositing
+04:47.276  render           | Video append frame 82
+04:47.276  render           | Time: 00:03.18 (Saving: 00:00.02)
+04:47.276  render           | Rendering frame 83
+04:47.280  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:47.280  render           | Engine: EEVEE
+04:47.524  render           | Fra: 83 | Rendering 1 / 32 samples
+04:49.054  render           | Fra: 83 | Rendering 25 / 32 samples
+04:49.494  render           | Fra: 83 | Rendering 32 / 32 samples
+04:49.566  render           | Executing compositor
+04:49.566  render           | Fra: 83 | Compositing
+04:50.035  render           | Video append frame 83
+04:50.035  render           | Time: 00:02.75 (Saving: 00:00.02)
+04:50.035  render           | Rendering frame 84
+04:50.036  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:50.036  render           | Engine: EEVEE
+04:50.113  render           | Fra: 84 | Rendering 1 / 32 samples
+04:51.752  render           | Fra: 84 | Rendering 25 / 32 samples
+04:52.191  render           | Fra: 84 | Rendering 32 / 32 samples
+04:52.254  render           | Executing compositor
+04:52.254  render           | Fra: 84 | Compositing
+04:52.837  render           | Video append frame 84
+04:52.837  render           | Time: 00:02.80 (Saving: 00:00.03)
+04:52.837  render           | Rendering frame 85
+04:52.837  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:52.837  render           | Engine: EEVEE
+04:52.917  render           | Fra: 85 | Rendering 1 / 32 samples
+04:54.400  render           | Fra: 85 | Rendering 25 / 32 samples
+04:54.834  render           | Fra: 85 | Rendering 32 / 32 samples
+04:54.889  render           | Executing compositor
+04:54.889  render           | Fra: 85 | Compositing
+04:55.289  render           | Video append frame 85
+04:55.289  render           | Time: 00:02.45 (Saving: 00:00.02)
+04:55.289  render           | Rendering frame 86
+04:55.289  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:55.289  render           | Engine: EEVEE
+04:55.362  render           | Fra: 86 | Rendering 1 / 32 samples
+04:56.879  render           | Fra: 86 | Rendering 25 / 32 samples
+04:57.316  render           | Fra: 86 | Rendering 32 / 32 samples
+04:57.373  render           | Executing compositor
+04:57.373  render           | Fra: 86 | Compositing
+04:57.763  render           | Video append frame 86
+04:57.763  render           | Time: 00:02.47 (Saving: 00:00.02)
+04:57.763  render           | Rendering frame 87
+04:57.763  render           | Start rendering: KHATIB / opponents, ViewLayer
+04:57.763  render           | Engine: EEVEE
+04:57.836  render           | Fra: 87 | Rendering 1 / 32 samples
+04:59.317  render           | Fra: 87 | Rendering 25 / 32 samples
+04:59.752  render           | Fra: 87 | Rendering 32 / 32 samples
+04:59.809  render           | Executing compositor
+04:59.809  render           | Fra: 87 | Compositing
+05:00.221  render           | Video append frame 87
+05:00.221  render           | Time: 00:02.45 (Saving: 00:00.02)
+05:00.221  render           | Rendering frame 88
+05:00.221  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:00.221  render           | Engine: EEVEE
+05:00.294  render           | Fra: 88 | Rendering 1 / 32 samples
+05:01.782  render           | Fra: 88 | Rendering 25 / 32 samples
+05:02.217  render           | Fra: 88 | Rendering 32 / 32 samples
+05:02.269  render           | Executing compositor
+05:02.269  render           | Fra: 88 | Compositing
+05:02.666  render           | Video append frame 88
+05:02.666  render           | Time: 00:02.44 (Saving: 00:00.02)
+05:02.666  render           | Rendering frame 89
+05:02.667  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:02.667  render           | Engine: EEVEE
+05:02.736  render           | Fra: 89 | Rendering 1 / 32 samples
+05:04.293  render           | Fra: 89 | Rendering 25 / 32 samples
+05:04.745  render           | Fra: 89 | Rendering 32 / 32 samples
+05:04.797  render           | Executing compositor
+05:04.797  render           | Fra: 89 | Compositing
+05:05.210  render           | Video append frame 89
+05:05.210  render           | Time: 00:02.54 (Saving: 00:00.02)
+05:05.210  render           | Rendering frame 90
+05:05.210  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:05.210  render           | Engine: EEVEE
+05:05.285  render           | Fra: 90 | Rendering 1 / 32 samples
+05:06.872  render           | Fra: 90 | Rendering 25 / 32 samples
+05:07.330  render           | Fra: 90 | Rendering 32 / 32 samples
+05:07.388  render           | Executing compositor
+05:07.388  render           | Fra: 90 | Compositing
+05:07.796  render           | Video append frame 90
+05:07.796  render           | Time: 00:02.58 (Saving: 00:00.02)
+05:07.796  render           | Rendering frame 91
+05:07.796  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:07.796  render           | Engine: EEVEE
+05:07.868  render           | Fra: 91 | Rendering 1 / 32 samples
+05:09.356  render           | Fra: 91 | Rendering 25 / 32 samples
+05:09.788  render           | Fra: 91 | Rendering 32 / 32 samples
+05:09.847  render           | Executing compositor
+05:09.847  render           | Fra: 91 | Compositing
+05:10.243  render           | Video append frame 91
+05:10.244  render           | Time: 00:02.44 (Saving: 00:00.02)
+05:10.244  render           | Rendering frame 92
+05:10.244  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:10.244  render           | Engine: EEVEE
+05:10.315  render           | Fra: 92 | Rendering 1 / 32 samples
+05:11.810  render           | Fra: 92 | Rendering 25 / 32 samples
+05:12.244  render           | Fra: 92 | Rendering 32 / 32 samples
+05:12.305  render           | Executing compositor
+05:12.305  render           | Fra: 92 | Compositing
+05:12.707  render           | Video append frame 92
+05:12.707  render           | Time: 00:02.46 (Saving: 00:00.02)
+05:12.707  render           | Rendering frame 93
+05:12.707  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:12.707  render           | Engine: EEVEE
+05:12.777  render           | Fra: 93 | Rendering 1 / 32 samples
+05:14.259  render           | Fra: 93 | Rendering 25 / 32 samples
+05:14.688  render           | Fra: 93 | Rendering 32 / 32 samples
+05:14.738  render           | Executing compositor
+05:14.738  render           | Fra: 93 | Compositing
+05:15.124  render           | Video append frame 93
+05:15.124  render           | Time: 00:02.41 (Saving: 00:00.02)
+05:15.124  render           | Rendering frame 94
+05:15.124  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:15.124  render           | Engine: EEVEE
+05:15.191  render           | Fra: 94 | Rendering 1 / 32 samples
+05:16.695  render           | Fra: 94 | Rendering 25 / 32 samples
+05:17.137  render           | Fra: 94 | Rendering 32 / 32 samples
+05:17.189  render           | Executing compositor
+05:17.189  render           | Fra: 94 | Compositing
+05:17.569  render           | Video append frame 94
+05:17.570  render           | Time: 00:02.44 (Saving: 00:00.02)
+05:17.570  render           | Rendering frame 95
+05:17.570  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:17.570  render           | Engine: EEVEE
+05:17.640  render           | Fra: 95 | Rendering 1 / 32 samples
+05:19.121  render           | Fra: 95 | Rendering 25 / 32 samples
+05:19.555  render           | Fra: 95 | Rendering 32 / 32 samples
+05:19.607  render           | Executing compositor
+05:19.607  render           | Fra: 95 | Compositing
+05:20.011  render           | Video append frame 95
+05:20.011  render           | Time: 00:02.44 (Saving: 00:00.02)
+05:20.011  render           | Rendering frame 96
+05:20.011  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:20.011  render           | Engine: EEVEE
+05:20.085  render           | Fra: 96 | Rendering 1 / 32 samples
+05:21.581  render           | Fra: 96 | Rendering 25 / 32 samples
+05:22.023  render           | Fra: 96 | Rendering 32 / 32 samples
+05:22.081  render           | Executing compositor
+05:22.081  render           | Fra: 96 | Compositing
+05:22.507  render           | Video append frame 96
+05:22.507  render           | Time: 00:02.49 (Saving: 00:00.02)
+05:22.507  render           | Rendering frame 97
+05:22.508  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:22.508  render           | Engine: EEVEE
+05:22.579  render           | Fra: 97 | Rendering 1 / 32 samples
+05:24.059  render           | Fra: 97 | Rendering 25 / 32 samples
+05:24.495  render           | Fra: 97 | Rendering 32 / 32 samples
+05:24.547  render           | Executing compositor
+05:24.547  render           | Fra: 97 | Compositing
+05:24.936  render           | Video append frame 97
+05:24.936  render           | Time: 00:02.42 (Saving: 00:00.02)
+05:24.936  render           | Rendering frame 98
+05:24.936  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:24.936  render           | Engine: EEVEE
+05:25.004  render           | Fra: 98 | Rendering 1 / 32 samples
+05:26.501  render           | Fra: 98 | Rendering 25 / 32 samples
+05:26.937  render           | Fra: 98 | Rendering 32 / 32 samples
+05:26.987  render           | Executing compositor
+05:26.987  render           | Fra: 98 | Compositing
+05:27.363  render           | Video append frame 98
+05:27.363  render           | Time: 00:02.42 (Saving: 00:00.01)
+05:27.363  render           | Rendering frame 99
+05:27.363  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:27.363  render           | Engine: EEVEE
+05:27.437  render           | Fra: 99 | Rendering 1 / 32 samples
+05:28.926  render           | Fra: 99 | Rendering 25 / 32 samples
+05:29.361  render           | Fra: 99 | Rendering 32 / 32 samples
+05:29.419  render           | Executing compositor
+05:29.419  render           | Fra: 99 | Compositing
+05:29.804  render           | Video append frame 99
+05:29.804  render           | Time: 00:02.44 (Saving: 00:00.02)
+05:29.804  render           | Rendering frame 100
+05:29.804  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:29.804  render           | Engine: EEVEE
+05:29.877  render           | Fra: 100 | Rendering 1 / 32 samples
+05:31.373  render           | Fra: 100 | Rendering 25 / 32 samples
+05:31.809  render           | Fra: 100 | Rendering 32 / 32 samples
+05:31.873  render           | Executing compositor
+05:31.873  render           | Fra: 100 | Compositing
+05:32.294  render           | Video append frame 100
+05:32.294  render           | Time: 00:02.49 (Saving: 00:00.02)
+05:32.294  render           | Rendering frame 101
+05:32.295  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:32.295  render           | Engine: EEVEE
+05:32.364  render           | Fra: 101 | Rendering 1 / 32 samples
+05:33.888  render           | Fra: 101 | Rendering 25 / 32 samples
+05:34.389  render           | Fra: 101 | Rendering 32 / 32 samples
+05:34.510  render           | Executing compositor
+05:34.510  render           | Fra: 101 | Compositing
+05:35.288  render           | Video append frame 101
+05:35.288  render           | Time: 00:02.99 (Saving: 00:00.02)
+05:35.288  render           | Rendering frame 102
+05:35.289  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:35.289  render           | Engine: EEVEE
+05:35.562  render           | Fra: 102 | Rendering 1 / 32 samples
+05:37.169  render           | Fra: 102 | Rendering 25 / 32 samples
+05:37.621  render           | Fra: 102 | Rendering 32 / 32 samples
+05:37.698  render           | Executing compositor
+05:37.698  render           | Fra: 102 | Compositing
+05:38.159  render           | Video append frame 102
+05:38.159  render           | Time: 00:02.87 (Saving: 00:00.02)
+05:38.159  render           | Rendering frame 103
+05:38.160  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:38.160  render           | Engine: EEVEE
+05:38.248  render           | Fra: 103 | Rendering 1 / 32 samples
+05:39.812  render           | Fra: 103 | Rendering 25 / 32 samples
+05:40.242  render           | Fra: 103 | Rendering 32 / 32 samples
+05:40.303  render           | Executing compositor
+05:40.303  render           | Fra: 103 | Compositing
+05:40.733  render           | Video append frame 103
+05:40.733  render           | Time: 00:02.57 (Saving: 00:00.02)
+05:40.733  render           | Rendering frame 104
+05:40.734  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:40.734  render           | Engine: EEVEE
+05:40.811  render           | Fra: 104 | Rendering 1 / 32 samples
+05:42.356  render           | Fra: 104 | Rendering 25 / 32 samples
+05:42.812  render           | Fra: 104 | Rendering 32 / 32 samples
+05:42.868  render           | Executing compositor
+05:42.868  render           | Fra: 104 | Compositing
+05:43.303  render           | Video append frame 104
+05:43.303  render           | Time: 00:02.56 (Saving: 00:00.02)
+05:43.303  render           | Rendering frame 105
+05:43.303  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:43.303  render           | Engine: EEVEE
+05:43.381  render           | Fra: 105 | Rendering 1 / 32 samples
+05:44.994  render           | Fra: 105 | Rendering 25 / 32 samples
+05:45.444  render           | Fra: 105 | Rendering 32 / 32 samples
+05:45.505  render           | Executing compositor
+05:45.505  render           | Fra: 105 | Compositing
+05:45.922  render           | Video append frame 105
+05:45.922  render           | Time: 00:02.61 (Saving: 00:00.02)
+05:45.922  render           | Rendering frame 106
+05:45.922  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:45.922  render           | Engine: EEVEE
+05:45.994  render           | Fra: 106 | Rendering 1 / 32 samples
+05:47.535  render           | Fra: 106 | Rendering 25 / 32 samples
+05:47.979  render           | Fra: 106 | Rendering 32 / 32 samples
+05:48.033  render           | Executing compositor
+05:48.033  render           | Fra: 106 | Compositing
+05:48.463  render           | Video append frame 106
+05:48.463  render           | Time: 00:02.54 (Saving: 00:00.02)
+05:48.463  render           | Rendering frame 107
+05:48.463  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:48.463  render           | Engine: EEVEE
+05:48.535  render           | Fra: 107 | Rendering 1 / 32 samples
+05:50.079  render           | Fra: 107 | Rendering 25 / 32 samples
+05:50.540  render           | Fra: 107 | Rendering 32 / 32 samples
+05:50.622  render           | Executing compositor
+05:50.624  render           | Fra: 107 | Compositing
+05:51.144  render           | Video append frame 107
+05:51.145  render           | Time: 00:02.68 (Saving: 00:00.02)
+05:51.145  render           | Rendering frame 108
+05:51.145  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:51.145  render           | Engine: EEVEE
+05:51.305  render           | Fra: 108 | Rendering 1 / 32 samples
+05:52.897  render           | Fra: 108 | Rendering 25 / 32 samples
+05:53.352  render           | Fra: 108 | Rendering 32 / 32 samples
+05:53.428  render           | Executing compositor
+05:53.428  render           | Fra: 108 | Compositing
+05:53.969  render           | Video append frame 108
+05:53.969  render           | Time: 00:02.82 (Saving: 00:00.02)
+05:53.969  render           | Rendering frame 109
+05:53.970  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:53.970  render           | Engine: EEVEE
+05:54.116  render           | Fra: 109 | Rendering 1 / 32 samples
+05:55.685  render           | Fra: 109 | Rendering 25 / 32 samples
+05:56.132  render           | Fra: 109 | Rendering 32 / 32 samples
+05:56.192  render           | Executing compositor
+05:56.192  render           | Fra: 109 | Compositing
+05:56.652  render           | Video append frame 109
+05:56.652  render           | Time: 00:02.68 (Saving: 00:00.02)
+05:56.652  render           | Rendering frame 110
+05:56.652  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:56.652  render           | Engine: EEVEE
+05:56.726  render           | Fra: 110 | Rendering 1 / 32 samples
+05:58.272  render           | Fra: 110 | Rendering 25 / 32 samples
+05:58.727  render           | Fra: 110 | Rendering 32 / 32 samples
+05:58.784  render           | Executing compositor
+05:58.784  render           | Fra: 110 | Compositing
+05:59.204  render           | Video append frame 110
+05:59.204  render           | Time: 00:02.55 (Saving: 00:00.02)
+05:59.204  render           | Rendering frame 111
+05:59.205  render           | Start rendering: KHATIB / opponents, ViewLayer
+05:59.205  render           | Engine: EEVEE
+05:59.280  render           | Fra: 111 | Rendering 1 / 32 samples
+06:00.794  render           | Fra: 111 | Rendering 25 / 32 samples
+06:01.237  render           | Fra: 111 | Rendering 32 / 32 samples
+06:01.291  render           | Executing compositor
+06:01.291  render           | Fra: 111 | Compositing
+06:01.717  render           | Video append frame 111
+06:01.717  render           | Time: 00:02.51 (Saving: 00:00.02)
+06:01.717  render           | Rendering frame 112
+06:01.717  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:01.717  render           | Engine: EEVEE
+06:01.786  render           | Fra: 112 | Rendering 1 / 32 samples
+06:03.316  render           | Fra: 112 | Rendering 25 / 32 samples
+06:03.759  render           | Fra: 112 | Rendering 32 / 32 samples
+06:03.820  render           | Executing compositor
+06:03.820  render           | Fra: 112 | Compositing
+06:04.233  render           | Video append frame 112
+06:04.233  render           | Time: 00:02.51 (Saving: 00:00.02)
+06:04.233  render           | Rendering frame 113
+06:04.233  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:04.233  render           | Engine: EEVEE
+06:04.304  render           | Fra: 113 | Rendering 1 / 32 samples
+06:05.827  render           | Fra: 113 | Rendering 25 / 32 samples
+06:06.274  render           | Fra: 113 | Rendering 32 / 32 samples
+06:06.326  render           | Executing compositor
+06:06.326  render           | Fra: 113 | Compositing
+06:06.731  render           | Video append frame 113
+06:06.731  render           | Time: 00:02.49 (Saving: 00:00.01)
+06:06.731  render           | Rendering frame 114
+06:06.731  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:06.731  render           | Engine: EEVEE
+06:06.804  render           | Fra: 114 | Rendering 1 / 32 samples
+06:08.316  render           | Fra: 114 | Rendering 25 / 32 samples
+06:08.766  render           | Fra: 114 | Rendering 32 / 32 samples
+06:08.820  render           | Executing compositor
+06:08.820  render           | Fra: 114 | Compositing
+06:09.210  render           | Video append frame 114
+06:09.210  render           | Time: 00:02.47 (Saving: 00:00.02)
+06:09.210  render           | Rendering frame 115
+06:09.211  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:09.211  render           | Engine: EEVEE
+06:09.279  render           | Fra: 115 | Rendering 1 / 32 samples
+06:10.787  render           | Fra: 115 | Rendering 25 / 32 samples
+06:11.230  render           | Fra: 115 | Rendering 32 / 32 samples
+06:11.289  render           | Executing compositor
+06:11.289  render           | Fra: 115 | Compositing
+06:11.697  render           | Video append frame 115
+06:11.697  render           | Time: 00:02.48 (Saving: 00:00.02)
+06:11.697  render           | Rendering frame 116
+06:11.698  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:11.698  render           | Engine: EEVEE
+06:11.768  render           | Fra: 116 | Rendering 1 / 32 samples
+06:13.293  render           | Fra: 116 | Rendering 25 / 32 samples
+06:13.742  render           | Fra: 116 | Rendering 32 / 32 samples
+06:13.802  render           | Executing compositor
+06:13.802  render           | Fra: 116 | Compositing
+06:14.225  render           | Video append frame 116
+06:14.225  render           | Time: 00:02.52 (Saving: 00:00.02)
+06:14.225  render           | Rendering frame 117
+06:14.225  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:14.225  render           | Engine: EEVEE
+06:14.295  render           | Fra: 117 | Rendering 1 / 32 samples
+06:15.831  render           | Fra: 117 | Rendering 25 / 32 samples
+06:16.288  render           | Fra: 117 | Rendering 32 / 32 samples
+06:16.355  render           | Executing compositor
+06:16.355  render           | Fra: 117 | Compositing
+06:16.892  render           | Video append frame 117
+06:16.892  render           | Time: 00:02.66 (Saving: 00:00.02)
+06:16.892  render           | Rendering frame 118
+06:16.892  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:16.892  render           | Engine: EEVEE
+06:16.964  render           | Fra: 118 | Rendering 1 / 32 samples
+06:18.528  render           | Fra: 118 | Rendering 25 / 32 samples
+06:18.983  render           | Fra: 118 | Rendering 32 / 32 samples
+06:19.046  render           | Executing compositor
+06:19.046  render           | Fra: 118 | Compositing
+06:19.695  render           | Video append frame 118
+06:19.695  render           | Time: 00:02.80 (Saving: 00:00.04)
+06:19.695  render           | Rendering frame 119
+06:19.695  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:19.695  render           | Engine: EEVEE
+06:19.787  render           | Fra: 119 | Rendering 1 / 32 samples
+06:21.392  render           | Fra: 119 | Rendering 25 / 32 samples
+06:21.846  render           | Fra: 119 | Rendering 32 / 32 samples
+06:21.904  render           | Executing compositor
+06:21.904  render           | Fra: 119 | Compositing
+06:22.370  render           | Video append frame 119
+06:22.370  render           | Time: 00:02.67 (Saving: 00:00.03)
+06:22.370  render           | Rendering frame 120
+06:22.371  render           | Start rendering: KHATIB / opponents, ViewLayer
+06:22.371  render           | Engine: EEVEE
+06:22.442  render           | Fra: 120 | Rendering 1 / 32 samples
+06:23.997  render           | Fra: 120 | Rendering 25 / 32 samples
+06:24.461  render           | Fra: 120 | Rendering 32 / 32 samples
+06:24.527  render           | Executing compositor
+06:24.527  render           | Fra: 120 | Compositing
+06:25.005  render           | Video append frame 120
+06:25.005  render           | Time: 00:02.63 (Saving: 00:00.03)
+
+Blender quit

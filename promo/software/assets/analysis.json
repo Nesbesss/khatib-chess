@@ -1,0 +1,1574 @@
+{
+  "fen": "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+  "sample": {
+    "depth": 13,
+    "score": {
+      "type": "cp",
+      "value": -141
+    },
+    "nodes": 2464770,
+    "nps": 949449,
+    "time": 2596,
+    "pv": [
+      "e2a6",
+      "b4c3",
+      "d2c3",
+      "h3g2",
+      "f3g2",
+      "e6d5",
+      "e5g4",
+      "e8f8",
+      "a6b7",
+      "f6g4",
+      "c3g7",
+      "f8g7",
+      "b7a8"
+    ],
+    "pvScores": [
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      },
+      {
+        "type": "cp",
+        "value": -141
+      }
+    ],
+    "tree": [
+      {
+        "move": "a2a3",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 1,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d2f4",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -142
+        },
+        "nodes": 2976,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -142
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "a2a4",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -162
+        },
+        "nodes": 1,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -162
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "b2b3",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 1,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "a1c1",
+        "piece": "R",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 1,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "g2g4",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -161
+        },
+        "nodes": 2,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -161
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d2c1",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 1604,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "h1f1",
+        "piece": "R",
+        "score": {
+          "type": "cp",
+          "value": -142
+        },
+        "nodes": 1497,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -142
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d2g5",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 9486,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d2e3",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 3700,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "a1d1",
+        "piece": "R",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 6118,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3g4",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 150,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "f6g4",
+            "score": {
+              "type": "cp",
+              "value": -559
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3f5",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 211,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "e6f5",
+            "score": {
+              "type": "cp",
+              "value": -907
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3d3",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 693,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6d3",
+            "score": {
+              "type": "cp",
+              "value": -392
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3e3",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 1326,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d2h6",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -143
+        },
+        "nodes": 1764,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -143
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3f4",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 779,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3h5",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 263,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "g6h5",
+            "score": {
+              "type": "cp",
+              "value": -793
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "c3b1",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 686,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "c3a4",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -146
+        },
+        "nodes": 1141,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -146
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e1f1",
+        "piece": "K",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 264,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2d1",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -163
+        },
+        "nodes": 2,
+        "pruned": true,
+        "best": false,
+        "replies": []
+      },
+      {
+        "move": "g2g3",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -142
+        },
+        "nodes": 2238,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -142
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2d3",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 698,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6d3",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "c3d1",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 1130,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2c4",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 2,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "b6c4",
+            "score": {
+              "type": "cp",
+              "value": -277
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2f1",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -143
+        },
+        "nodes": 6068,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6f1",
+            "score": {
+              "type": "cp",
+              "value": -143
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2b5",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 58,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6b5",
+            "score": {
+              "type": "cp",
+              "value": -131
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5c6",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -152
+        },
+        "nodes": 1115,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -152
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3g3",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 793,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5c4",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -142
+        },
+        "nodes": 1554,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": -146
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "a1b1",
+        "piece": "R",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 2195,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "c3b5",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -160
+        },
+        "nodes": 2,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6b5",
+            "score": {
+              "type": "cp",
+              "value": -160
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "h1g1",
+        "piece": "R",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 8720,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d5d6",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 7733,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5d3",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -155
+        },
+        "nodes": 1285,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": -155
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e1c1",
+        "piece": "K",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 8725,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5g4",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 9699,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e1d1",
+        "piece": "K",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 7892,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e1g1",
+        "piece": "K",
+        "score": {
+          "type": "cp",
+          "value": -142
+        },
+        "nodes": 5020,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -142
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3h3",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 1150,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "h8h3",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5f7",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 31414,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5d7",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 32002,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e5g6",
+        "piece": "N",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 7182,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "d5e6",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 97558,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "g2h3",
+        "piece": "P",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 13895,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "a6e2",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "f3f6",
+        "piece": "Q",
+        "score": {
+          "type": "cp",
+          "value": -144
+        },
+        "nodes": 1306,
+        "pruned": true,
+        "best": false,
+        "replies": [
+          {
+            "move": "g7f6",
+            "score": {
+              "type": "cp",
+              "value": -144
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      },
+      {
+        "move": "e2a6",
+        "piece": "B",
+        "score": {
+          "type": "cp",
+          "value": -141
+        },
+        "nodes": 171622,
+        "pruned": false,
+        "best": true,
+        "replies": [
+          {
+            "move": "b4c3",
+            "score": {
+              "type": "cp",
+              "value": -141
+            },
+            "nodes": 0,
+            "pruned": false
+          },
+          {
+            "move": "h3g2",
+            "score": {
+              "type": "cp",
+              "value": 0
+            },
+            "nodes": 0,
+            "pruned": false
+          }
+        ]
+      }
+    ]
+  },
+  "san": [
+    "Bxa6",
+    "bxc3",
+    "Bxc3",
+    "hxg2",
+    "Qxg2",
+    "exd5",
+    "Ng4",
+    "Kf8"
+  ],
+  "positions": [
+    "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+    "r3k2r/p1ppqpb1/Bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPB1PPP/R3K2R b KQkq - 0 1",
+    "r3k2r/p1ppqpb1/Bn2pnp1/3PN3/4P3/2p2Q1p/PPPB1PPP/R3K2R w KQkq - 0 2",
+    "r3k2r/p1ppqpb1/Bn2pnp1/3PN3/4P3/2B2Q1p/PPP2PPP/R3K2R b KQkq - 0 2",
+    "r3k2r/p1ppqpb1/Bn2pnp1/3PN3/4P3/2B2Q2/PPP2PpP/R3K2R w KQkq - 0 3",
+    "r3k2r/p1ppqpb1/Bn2pnp1/3PN3/4P3/2B5/PPP2PQP/R3K2R b KQkq - 0 3",
+    "r3k2r/p1ppqpb1/Bn3np1/3pN3/4P3/2B5/PPP2PQP/R3K2R w KQkq - 0 4",
+    "r3k2r/p1ppqpb1/Bn3np1/3p4/4P1N1/2B5/PPP2PQP/R3K2R b KQkq - 1 4",
+    "r4k1r/p1ppqpb1/Bn3np1/3p4/4P1N1/2B5/PPP2PQP/R3K2R w KQ - 2 5"
+  ]
+}

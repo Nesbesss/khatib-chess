@@ -1,0 +1,15 @@
+/Users/nesbes/chess/promo/hero-test/full_edit.py:20: DeprecationWarning: 'MovieStrip.frame_final_start' is expected to be removed in Blender 6.0
+  o.frame_final_start=a
+/Users/nesbes/chess/promo/hero-test/full_edit.py:21: DeprecationWarning: 'MovieStrip.frame_final_end' is expected to be removed in Blender 6.0
+  o.frame_final_end=b
+/Users/nesbes/chess/promo/hero-test/full_edit.py:21: DeprecationWarning: 'ImageStrip.frame_final_end' is expected to be removed in Blender 6.0
+  o.frame_final_end=b
+00:01.555  render           | Saved: '/Users/nesbes/chess/promo/hero-test/full/edit-174.png'
+00:01.613  render           | Saved: '/Users/nesbes/chess/promo/hero-test/full/edit-360.png'
+00:01.668  render           | Saved: '/Users/nesbes/chess/promo/hero-test/full/edit-475.png'
+00:01.706  render           | Saved: '/Users/nesbes/chess/promo/hero-test/full/edit-610.png'
+00:01.758  render           | Saved: '/Users/nesbes/chess/promo/hero-test/full/edit-738.png'
+Info: Packed 4 file(s)
+Blender 5.2.0 LTS (hash fbe6228777e7 built 2026-07-14 01:31:22)
+
+Blender quit
