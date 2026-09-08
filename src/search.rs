@@ -394,15 +394,21 @@ impl Searcher {
         // Check extension: don't drop into quiescence while in check.
         if in_check { depth += 1; }
 
+        // Draw detection comes before the drop into quiescence. Behind the
+        // depth cutoff it would only run at interior nodes, so at every leaf
+        // -- most of the tree, and proportionally more of it the shallower
+        // the search -- a repetition was scored a flat draw and the contempt
+        // below never applied. Shallow searches are the short-clock case
+        // this is meant to help most.
+        if !is_root && (self.is_repetition(board) || board.halfmove >= 100) {
+            return self.draw_score(ply);
+        }
+
         if depth <= 0 {
             return self.quiesce(board, ply, alpha, beta);
         }
 
         if !is_root {
-            // Draw by repetition or fifty-move rule.
-            if self.is_repetition(board) || board.halfmove >= 100 {
-                return self.draw_score(ply);
-            }
             // Mate-distance pruning: a shorter mate is already available.
             let mate_alpha = alpha.max(-MATE + ply as Score);
             let mate_beta = beta.min(MATE - ply as Score - 1);
@@ -465,7 +471,9 @@ impl Searcher {
         let mut list = generate(board, GenMode::All);
         if list.len == 0 {
             // No legal moves: mate if in check, else stalemate.
-            return if in_check { -MATE + ply as Score } else { DRAW };
+            // Stalemate is a draw like any other: from a winning position it
+            // throws the win away, so it is priced the same as a repetition.
+            return if in_check { -MATE + ply as Score } else { self.draw_score(ply) };
         }
 
         self.order_moves(board, &mut list, tt_move, ply);
