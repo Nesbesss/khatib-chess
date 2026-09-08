@@ -379,6 +379,10 @@ class Bot:
             print(f"telegram: on ({len(_tg_chats())} subscribed) — "
                   "anyone can /start the bot to follow games")
         if seek_tc:
+            # Wait before the first challenge. Every restart used to fire a
+            # burst immediately, which is what kept tripping Lichess's
+            # challenge limiter after each deploy.
+            time.sleep(90)
             secs, inc = seek_tc
             print(f"seeking {secs}s+{inc} games "
                   f"({'rated' if rated else 'casual'}) against real players")
