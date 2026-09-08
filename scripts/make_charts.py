@@ -65,7 +65,10 @@ def progress(path="docs/img/progress.png"):
     for b, v, n in zip(bars, elo, note):
         ax.text(b.get_x() + b.get_width() / 2, v + 8, f"+{v}",
                 ha="center", color=INK, fontsize=11, fontweight="bold")
-        ax.text(b.get_x() + b.get_width() / 2, 8, n,
+        # "over vN" sits inside the bar, but a small bar has no inside to sit
+        # in -- v11's +16 left the caption printed across the bar itself.
+        inside = v > 40
+        ax.text(b.get_x() + b.get_width() / 2, 8 if inside else v + 30, n,
                 ha="center", color=SUB, fontsize=8.5)
     ax.set_ylim(0, 370)
     ax.set_ylabel("Elo gained over the previous net", color=SUB, fontsize=10)
