@@ -35,3 +35,6 @@ logs/
 .telegram_subs
 
 data/selfplay/
+
+# Separate promo project; not part of the engine.
+promo/
