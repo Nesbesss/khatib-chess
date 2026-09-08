@@ -22,7 +22,7 @@ def _style(ax, fig):
 
 
 def tactics(path="docs/img/benchmark.png"):
-    names = ["Stockfish 17", "Khatib v10", "Leela (lc0)"]
+    names = ["Stockfish 17", "Khatib v11", "Leela (lc0)"]
     vals = [50.0, 43.3, 36.7]
     raw = ["15/30", "13/30", "11/30"]
     colors = [DIM, ACCENT, DIM]
@@ -52,15 +52,16 @@ def progress(path="docs/img/progress.png"):
     Bars, not a line: these are independent steps, and a line makes a smaller
     step look like a regression when every bar is in fact a win.
     """
-    labels = ["v2", "v3", "v4", "v7", "v10"]
-    elo = [127, 179, 241, 313, 56]
-    note = ["over v1", "over v2", "over v3", "over v4", "over v7"]
+    labels = ["v2", "v3", "v4", "v7", "v10", "v11"]
+    elo = [127, 179, 241, 313, 56, 16]
+    note = ["over v1", "over v2", "over v3", "over v4", "over v7", "over v10"]
 
     fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
     _style(ax, fig)
     ax.grid(axis="x", color=BG, linewidth=0)
     ax.grid(axis="y", color=GRID, linewidth=1)
-    bars = ax.bar(labels, elo, color=[DIM] * 4 + [ACCENT], width=0.55, zorder=3)
+    bars = ax.bar(labels, elo, color=[DIM] * (len(labels) - 1) + [ACCENT],
+                  width=0.55, zorder=3)
     for b, v, n in zip(bars, elo, note):
         ax.text(b.get_x() + b.get_width() / 2, v + 8, f"+{v}",
                 ha="center", color=INK, fontsize=11, fontweight="bold")
@@ -75,6 +76,41 @@ def progress(path="docs/img/progress.png"):
     print("wrote", path)
 
 
+def standing(path="docs/img/standing.png"):
+    """Where the engine sits against opponents it has actually played.
+
+    The version-over-version chart only ever shows Khatib beating itself,
+    which flatters it. This one includes the engine that beats us.
+    """
+    names = ["Weiawaga 6.0.0", "Khatib v11", "club player"]
+    # Khatib anchored at its measured Lichess blitz rating; the others placed
+    # by the margins actually measured against it.
+    vals = [2286 + 511, 2286, 1500]
+    labels = ["+511 Elo\n0W 36L 4D / 40",
+              "2286 blitz \u00b7 236 games",
+              "\u2212786 Elo\n12W 3D 0L"]
+    colors = [DIM, ACCENT, DIM]
+
+    fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
+    _style(ax, fig)
+    y = range(len(names))
+    ax.barh(y, vals, color=colors, height=0.55, zorder=3)
+    ax.set_yticks(list(y))
+    ax.set_yticklabels(names, color=INK, fontsize=11)
+    ax.invert_yaxis()
+    ax.set_xlim(0, 3900)
+    ax.set_xlabel("approximate Elo", color=SUB, fontsize=10)
+    for i, (v, t) in enumerate(zip(vals, labels)):
+        ax.text(v + 60, i, t, va="center",
+                color=INK if i == 1 else SUB, fontsize=9)
+    ax.set_title("measured against opponents it has played",
+                 color=INK, fontsize=12, pad=14, loc="left")
+    fig.tight_layout()
+    fig.savefig(path, facecolor=BG)
+    print("wrote", path)
+
+
 if __name__ == "__main__":
     tactics()
     progress()
+    standing()
