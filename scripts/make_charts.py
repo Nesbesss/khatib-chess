@@ -22,9 +22,9 @@ def _style(ax, fig):
 
 
 def tactics(path="docs/img/benchmark.png"):
-    names = ["Stockfish 17", "Khatib v11", "Leela (lc0)"]
-    vals = [50.0, 43.3, 36.7]
-    raw = ["15/30", "13/30", "11/30"]
+    names = ["Stockfish 18", "Khatib v11", "Leela (lc0)"]
+    vals = [72.7, 61.8, 43.6]
+    raw = ["40/55", "34/55", "24/55"]
     colors = [DIM, ACCENT, DIM]
 
     fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
@@ -34,12 +34,12 @@ def tactics(path="docs/img/benchmark.png"):
     ax.set_yticks(list(y))
     ax.set_yticklabels(names, color=INK, fontsize=11)
     ax.invert_yaxis()
-    ax.set_xlim(0, 60)
+    ax.set_xlim(0, 88)
     ax.set_xlabel("positions solved  (%)", color=SUB, fontsize=10)
     for i, (v, r) in enumerate(zip(vals, raw)):
         ax.text(v + 1.2, i, f"{v:.1f}%  ({r})", va="center",
                 color=INK if i == 1 else SUB, fontsize=10)
-    ax.set_title("30 hard positions · 1 s each · same machine",
+    ax.set_title("55 tactical positions \u00b7 1 s each \u00b7 same machine",
                  color=INK, fontsize=12, pad=14, loc="left")
     fig.tight_layout()
     fig.savefig(path, facecolor=BG)
