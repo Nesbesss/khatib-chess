@@ -24,6 +24,8 @@ pub struct Params {
     pub fut_depth: i32,
     pub lmr_base: f64,          // reduction = base + ln(d)*ln(m) / div
     pub lmr_div: f64,
+    pub sing_depth: i32,      // singular: minimum depth to attempt
+    pub sing_margin: Score,   // singular: target = tt_score - margin*depth
 }
 
 fn env_i32(name: &str, default: i32) -> i32 {
@@ -44,6 +46,8 @@ pub static PARAMS: std::sync::LazyLock<Params> = std::sync::LazyLock::new(|| Par
     fut_depth:  env_i32("KH_FUT_DEPTH", 6),
     lmr_base:   env_f64("KH_LMR_BASE", 0.75),
     lmr_div:    env_f64("KH_LMR_DIV", 2.25),
+    sing_depth: env_i32("KH_SING_DEPTH", 8),
+    sing_margin: env_i32("KH_SING_MARGIN", 2) as Score,
 });
 
 
@@ -596,7 +600,7 @@ impl Searcher {
             // verification to mean something, and never while already
             // verifying, which would recurse without bound.
             let mut sing_ext = 0;
-            if !is_root && !is_excl && i == 0 && m == tt_move && depth >= 8 {
+            if !is_root && !is_excl && i == 0 && m == tt_move && depth >= PARAMS.sing_depth {
                 if let Some(e) = self.tt.probe(board.hash) {
                     let tt_score = from_tt_score(e.score as Score, ply);
                     // A shallower entry has not looked hard enough to be
@@ -610,7 +614,7 @@ impl Searcher {
                     if usable {
                         self.sing_eligible += 1;
                         SING_ELIGIBLE.fetch_add(1, Ordering::Relaxed);
-                        let margin = 2 * depth as Score;
+                        let margin = PARAMS.sing_margin * depth as Score;
                         let target = tt_score - margin;
                         self.excluded[ply] = m;
                         let v = self.alphabeta(board, (depth - 1) / 2, ply,
