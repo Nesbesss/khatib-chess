@@ -30,8 +30,11 @@ class UCI:
             if not line or token in line:
                 return
 
-    def best(self, fen, ms):
-        self.p.stdin.write(f"position fen {fen}\ngo movetime {ms}\n")
+    def best(self, fen, ms, nodes=None):
+        # Node-limited scoring so a busy machine cannot change the result: a
+        # wall-clock budget measures the machine as much as the engine.
+        limit = f"nodes {nodes}" if nodes else f"movetime {ms}"
+        self.p.stdin.write(f"position fen {fen}\ngo {limit}\n")
         self.p.stdin.flush()
         depth = 0
         while True:
@@ -147,12 +150,12 @@ def san_matches(engine_uci, expected_sans, fen, ref):
     return False
 
 
-def run(name, cmd, options, tests, ms, ref):
+def run(name, cmd, options, tests, ms, ref, nodes=None):
     eng = UCI(cmd, options)
     solved, total_depth, misses = 0, 0, []
     t0 = time.time()
     for fen, answers, tid, is_uci in tests:
-        mv, depth = eng.best(fen, ms)
+        mv, depth = eng.best(fen, ms, nodes)
         total_depth += depth
         hit = (mv in answers) if is_uci else (mv and san_matches(mv, answers, fen, ref))
         if hit:
@@ -175,6 +178,8 @@ def main():
     ap.add_argument("--all", action="store_true",
                     help="test our engine and Stockfish")
     ap.add_argument("--ms", type=int, default=1000, help="ms per position")
+    ap.add_argument("--nodes", type=int,
+                    help="nodes per position instead of a time budget")
     ap.add_argument("--suite", default=SUITE)
     a = ap.parse_args()
 
@@ -189,13 +194,14 @@ def main():
     else:
         engines = [(os.path.basename(e), [e], {}) for e in a.engine]
 
+    budget = f"{a.nodes} nodes" if a.nodes else f"{a.ms} ms"
     print(f"Suite: {os.path.basename(a.suite)} — {len(tests)} positions, "
-          f"{a.ms} ms each")
+          f"{budget} each")
     print("(answers verified by deep search; a short budget is what makes "
           "positions hard)\n")
     results = []
     for name, cmd, opts in engines:
-        r = run(name, cmd, opts, tests, a.ms, ref)
+        r = run(name, cmd, opts, tests, a.ms, ref, a.nodes)
         results.append(r)
         pct = 100 * r["solved"] / r["total"]
         print(f"{name:<16} {r['solved']:>2}/{r['total']}  {pct:5.1f}%   "

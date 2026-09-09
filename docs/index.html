@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Khatib">
 <meta property="og:title" content="Khatib — a chess engine in Rust">
-<meta property="og:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on a 30-position tactics suite and is 56-2 against human players. Play it on Lichess.">
+<meta property="og:description" content="Custom NNUE neural network trained on 95M Stockfish-evaluated positions. Outscores Leela on a 55-position tactics suite and is 56-2 against human players. Play it on Lichess.">
 <meta property="og:url" content="https://nesbesss.github.io/khatib-chess/">
 <meta property="og:image" content="https://nesbesss.github.io/khatib-chess/img/social.png?v=45b9fb67">
 <meta property="og:image:width" content="1200">
@@ -162,29 +162,30 @@
 
   <h2>Benchmark</h2>
   <p class="note">
-    Thirty hard positions, one second each, all three engines on the same
-    machine.
+    Fifty-five tactical positions, one second each, all three engines on the
+    same machine.
   </p>
-  <img class="chart" src="img/benchmark.png?v=391f5de0"
-       alt="Stockfish 14 of 30, Khatib 12 of 30, Leela 10 of 30">
+  <img class="chart" src="img/benchmark.png?v=5f971080"
+       alt="Stockfish 40 of 55, Khatib 34 of 55, Leela 24 of 55">
   <table>
-    <tr><th>Engine</th><th class="n">Solved</th></tr>
-    <tr><td>Stockfish 17</td><td class="n">15 / 30</td></tr>
-    <tr class="me"><td>Khatib v11</td><td class="n">13 / 30</td></tr>
-    <tr><td>Leela (lc0)</td><td class="n">11 / 30</td></tr>
+    <tr><th>Engine</th><th class="n">Solved</th><th class="n">Avg depth</th></tr>
+    <tr><td>Stockfish 18</td><td class="n">40 / 55</td><td class="n">46.9</td></tr>
+    <tr class="me"><td>Khatib v11</td><td class="n">34 / 55</td><td class="n">11.8</td></tr>
+    <tr><td>Leela (lc0)</td><td class="n">24 / 55</td><td class="n">3.8</td></tr>
   </table>
   <p class="note">
-    Khatib varies by about a position between runs, so treat the two-position
-    gap to Stockfish as small but real. Stockfish is a far more mature engine and this doesn't claim to match
-    it.
+    An earlier version of this table used a 30-position suite, where the same
+    comparison swung by two positions between runs. Fifty-five positions is
+    still small, so treat the gap to Stockfish as approximate. Stockfish is a
+    far more mature engine and this doesn't claim to match it &mdash; it
+    searches to depth 47 where Khatib reaches 12.
   </p>
 
   <h2>Every version earns its place</h2>
   <p>
     A network ships only after beating the one before it over hundreds of
     games. <b>v10</b> won by <b>+56 &plusmn; 14 Elo</b> across 800 games;
-    <b>v11</b> is currently ahead of it by <b>+15 &plusmn; 14 Elo</b> at 320
-    games, which is the first read whose interval clears zero.
+    <b>v11</b> beat it by <b>+15 &plusmn; 11 Elo</b> across 560 games.
   </p>
   <img class="chart" src="img/progress.png?v=bea408c3"
        alt="Elo gained by each network version, rising from 60 to 313">

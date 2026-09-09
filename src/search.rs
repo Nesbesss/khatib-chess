@@ -24,6 +24,8 @@ pub struct Params {
     pub fut_depth: i32,
     pub lmr_base: f64,          // reduction = base + ln(d)*ln(m) / div
     pub lmr_div: f64,
+    pub sing_depth: i32,      // singular: minimum depth to attempt
+    pub sing_margin: Score,   // singular: target = tt_score - margin*depth
 }
 
 fn env_i32(name: &str, default: i32) -> i32 {
@@ -44,6 +46,8 @@ pub static PARAMS: std::sync::LazyLock<Params> = std::sync::LazyLock::new(|| Par
     fut_depth:  env_i32("KH_FUT_DEPTH", 6),
     lmr_base:   env_f64("KH_LMR_BASE", 0.75),
     lmr_div:    env_f64("KH_LMR_DIV", 2.25),
+    sing_depth: env_i32("KH_SING_DEPTH", 8),
+    sing_margin: env_i32("KH_SING_MARGIN", 2) as Score,
 });
 
 
@@ -207,6 +211,15 @@ pub struct Searcher {
     // Helper threads skip some iterations so they diverge from the main
     // thread's path and fill the shared table with different information.
     pub skip_depth: usize,
+    // Move barred from consideration at each ply, for singular verification.
+    // Move::NULL means "no exclusion", which is the normal case.
+    excluded: [Move; MAX_PLY],
+    // Counters, so a run can prove the feature fired rather than assuming it.
+    // Silent no-op and tree explosion have different signatures and an Elo
+    // match cannot tell them apart.
+    pub sing_eligible: u64,
+    pub sing_verified: u64,
+    pub sing_extended: u64,
     // Score from the last completed iteration, used to price a draw. A repeat
     // is worth 0 only when the game is level; from a won position it throws
     // the win away, which is how three won games became draws on Lichess.
@@ -237,6 +250,10 @@ impl Searcher {
             forced_net: None,
             last_capture_sq: 64,
             skip_depth: 0,
+            excluded: [Move::NULL; MAX_PLY],
+            sing_eligible: 0,
+            sing_verified: 0,
+            sing_extended: 0,
             root_score: 0,
         }
     }
@@ -466,10 +483,16 @@ impl Searcher {
         if ply >= MAX_PLY - 1 { return self.eval(board); }
 
         // Transposition table probe.
+        // An excluded node asks "how good is this position WITHOUT that move",
+        // which is not what any TT entry under this key answers. Keep the move
+        // for ordering; take no cutoff from it.
+        let excluded = self.excluded[ply];
+        let is_excl = excluded != Move::NULL;
+
         let mut tt_move = Move::NULL;
         if let Some(e) = self.tt.probe(board.hash) {
             tt_move = e.mv;
-            if !is_root && e.depth as i32 >= depth {
+            if !is_root && !is_excl && e.depth as i32 >= depth {
                 let score = from_tt_score(e.score as Score, ply);
                 match e.bound {
                     Bound::Exact => return score,
@@ -544,6 +567,9 @@ impl Searcher {
 
         for i in 0..list.len {
             let m = list[i];
+            // Singular verification asks how the position holds up WITHOUT
+            // this move, so it is the one move that must not be searched.
+            if m == excluded { continue; }
             let is_quiet = !m.is_capture() && !m.is_promotion();
 
             // Keep at least one move so we never return an empty result.
@@ -564,6 +590,49 @@ impl Searcher {
             if let Some((_, pc)) = board.piece_at(m.from()) {
                 self.move_stack[ply] = (pc.idx(), m.to());
             }
+            // Singular extension: if the TT move is the only move that holds
+            // this position together, it deserves a deeper look than its
+            // siblings. Verify by searching every OTHER move against a window
+            // just below the TT score -- if they all fail low, this move
+            // stands alone.
+            //
+            // Only for the TT move, only deep enough for the half-depth
+            // verification to mean something, and never while already
+            // verifying, which would recurse without bound.
+            let mut sing_ext = 0;
+            if !is_root && !is_excl && i == 0 && m == tt_move && depth >= PARAMS.sing_depth {
+                if let Some(e) = self.tt.probe(board.hash) {
+                    let tt_score = from_tt_score(e.score as Score, ply);
+                    // A shallower entry has not looked hard enough to be
+                    // evidence, and an Upper bound is not a claim this move is
+                    // good. Mate scores are excluded: their arithmetic does
+                    // not survive the margin subtraction.
+                    let usable = e.depth as i32 >= depth - 3
+                        && e.mv == m
+                        && matches!(e.bound, Bound::Lower | Bound::Exact)
+                        && tt_score.abs() < MATE_IN_MAX;
+                    if usable {
+                        self.sing_eligible += 1;
+                        SING_ELIGIBLE.fetch_add(1, Ordering::Relaxed);
+                        let margin = PARAMS.sing_margin * depth as Score;
+                        let target = tt_score - margin;
+                        self.excluded[ply] = m;
+                        let v = self.alphabeta(board, (depth - 1) / 2, ply,
+                                               target - 1, target, false);
+                        self.excluded[ply] = Move::NULL;
+                        self.sing_verified += 1;
+                        SING_VERIFIED.fetch_add(1, Ordering::Relaxed);
+                        // Every alternative fell short of the target, so this
+                        // move really is the only one holding the position.
+                        if !self.stopped && v < target {
+                            sing_ext = 1;
+                            self.sing_extended += 1;
+                            SING_EXTENDED.fetch_add(1, Ordering::Relaxed);
+                        }
+                    }
+                }
+            }
+
             self.acc_push(board, m);
             let saved_cap = self.last_capture_sq;
             self.last_capture_sq = if m.is_capture() { m.to() } else { 64 };
@@ -572,7 +641,10 @@ impl Searcher {
 
             // Recapture extension: a forced recapture continues a tactical
             // sequence, so searching it one ply deeper is usually worth it.
+            // Extensions combine by max, not sum, so a move cannot collect
+            // several plies at once and run the tree away.
             let ext = if m.is_capture() && m.to() == prev_capture_sq { 1 } else { 0 };
+            let ext = ext.max(sing_ext);
 
             let mut score;
             if i == 0 {
@@ -667,8 +739,13 @@ impl Searcher {
         let bound = if best_score >= beta { Bound::Lower }
                     else if best_score > orig_alpha { Bound::Exact }
                     else { Bound::Upper };
-        self.tt.store(board.hash, best_move, to_tt_score(best_score, ply) as i16,
-                      depth as i8, bound);
+        // The excluded node's score answers a different question than the key
+        // names. Publishing it would let another thread cut on it, and putting
+        // the old entry back afterwards cannot undo a cutoff already taken.
+        if !is_excl {
+            self.tt.store(board.hash, best_move, to_tt_score(best_score, ply) as i16,
+                          depth as i8, bound);
+        }
 
         best_score
     }
@@ -1097,6 +1174,12 @@ impl Searcher {
 // shared table, so the others benefit. Simple, and it scales well in practice.
 // ---------------------------------------------------------------------------
 
+// Singular counters, summed across Lazy SMP threads. Diagnostics only: they
+// tell a run that never fires apart from one that fires and gains nothing.
+pub static SING_ELIGIBLE: AtomicU64 = AtomicU64::new(0);
+pub static SING_VERIFIED: AtomicU64 = AtomicU64::new(0);
+pub static SING_EXTENDED: AtomicU64 = AtomicU64::new(0);
+
 pub struct ThreadedSearcher {
     pub tt: Arc<Tt>,
     pub threads: usize,
@@ -1116,6 +1199,13 @@ impl ThreadedSearcher {
 
     pub fn set_threads(&mut self, n: usize) {
         self.threads = n.max(1);
+    }
+
+    /// (eligible, verified, extended) since the last reset.
+    pub fn singular_stats(&self) -> (u64, u64, u64) {
+        (SING_ELIGIBLE.load(Ordering::Relaxed),
+         SING_VERIFIED.load(Ordering::Relaxed),
+         SING_EXTENDED.load(Ordering::Relaxed))
     }
 
     pub fn clear(&mut self) {
@@ -1207,5 +1297,57 @@ mod contempt_tests {
         // The nudge must never outweigh real material, or the engine would
         // shed a piece to dodge a repetition.
         assert!(s.draw_score(0).abs() < 100);
+    }
+}
+
+#[cfg(test)]
+mod singular_tests {
+    use super::*;
+    use crate::board::Board;
+
+    /// Singular extensions must actually fire, and the excluded move must
+    /// never be played at the node that excludes it. A feature that silently
+    /// never triggers looks exactly like one that triggers and gains nothing,
+    /// and only the counters tell them apart.
+    #[test]
+    fn singular_fires_and_stays_bounded() {
+        SING_ELIGIBLE.store(0, Ordering::Relaxed);
+        SING_VERIFIED.store(0, Ordering::Relaxed);
+        SING_EXTENDED.store(0, Ordering::Relaxed);
+
+        let mut board = Board::from_fen(
+            "r1bq1rk1/ppp2ppp/2np1n2/2b1p3/2B1P3/2NP1N2/PPP2PPP/R1BQ1RK1 w - - 0 8"
+        ).expect("valid fen");
+        let mut s = Searcher::new(16);
+        let limits = SearchLimits { depth: 12, ..Default::default() };
+        let (mv, _) = s.search(&mut board, limits, false);
+
+        assert!(mv != Move::NULL, "search must return a move");
+
+        let eligible = SING_ELIGIBLE.load(Ordering::Relaxed);
+        let verified = SING_VERIFIED.load(Ordering::Relaxed);
+        let extended = SING_EXTENDED.load(Ordering::Relaxed);
+
+        assert!(eligible > 0, "no node qualified -- the feature never ran");
+        assert_eq!(eligible, verified, "every eligible node must be verified");
+        assert!(extended <= verified, "cannot extend more often than verified");
+        // Extending nearly everything means the margin is too loose and the
+        // tree grows without the evidence to justify it.
+        assert!(extended * 2 < verified * 3,
+                "extension rate {}/{} is implausibly high", extended, verified);
+    }
+
+    /// Exclusion must be scoped to its own node: it is set, used, and cleared,
+    /// never left behind for a sibling or a child to trip over.
+    #[test]
+    fn exclusion_is_cleared() {
+        let mut board = Board::from_fen(
+            "r2q1rk1/pp2bppp/2n1bn2/2pp4/3P4/2PBPN2/PP1N1PPP/R1BQ1RK1 w - - 0 10"
+        ).expect("valid fen");
+        let mut s = Searcher::new(16);
+        let limits = SearchLimits { depth: 10, ..Default::default() };
+        s.search(&mut board, limits, false);
+        assert!(s.excluded.iter().all(|&m| m == Move::NULL),
+                "an exclusion outlived the node that set it");
     }
 }
