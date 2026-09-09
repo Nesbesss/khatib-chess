@@ -256,6 +256,33 @@ class Bot:
         print(f"game {game_id} started")
         notify(f"\u265e Game started\nhttps://lichess.org/{game_id}")
         self.say(game_id, self.GREETING)
+        # An opponent who never moves blocks the game slot forever: the event
+        # stream simply goes quiet, so nothing times out and nothing aborts.
+        # One classical game sat unterminated for twelve hours after a single
+        # ply, and with MAX_GAMES at 1 the bot played nothing else all day.
+        # Watch the ply count from a side thread and abort a game that stops
+        # progressing. Lichess only allows abort before both sides have moved;
+        # after that a stalled opponent will flag on their own clock.
+        progress = {"ply": -1, "at": time.time()}
+        stop_watch = threading.Event()
+
+        def watchdog():
+            STALL = int(os.environ.get("STALL_ABORT_S", "600"))
+            while not stop_watch.wait(30):
+                if time.time() - progress["at"] < STALL:
+                    continue
+                r = self.s.post(f"{API}/bot/game/{game_id}/abort")
+                if r.status_code == 200:
+                    print(f"aborted {game_id}: no progress for {STALL}s")
+                    notify(f"⏹ Aborted a stalled game\n"
+                           f"https://lichess.org/{game_id}")
+                else:
+                    # Past the abort window; the clock will settle it.
+                    print(f"stalled {game_id} but cannot abort: "
+                          f"{r.status_code} {r.text[:80]}")
+                return
+
+        threading.Thread(target=watchdog, daemon=True).start()
         try:
             with self.s.get(f"{API}/bot/game/stream/{game_id}", stream=True) as r:
                 for line in r.iter_lines():
@@ -283,10 +310,14 @@ class Bot:
                         else:
                             head = f"\u274c Lost by {status}"
                         notify(f"{head}\nhttps://lichess.org/{game_id}")
+                        stop_watch.set()
                         return
 
                     moves = state.get("moves", "")
                     ply = len(moves.split()) if moves else 0
+                    if ply != progress["ply"]:
+                        progress["ply"] = ply
+                        progress["at"] = time.time()
                     our_turn = (ply % 2 == 0) == (my_color == "white")
                     if not our_turn:
                         continue
@@ -304,6 +335,7 @@ class Bot:
                         return
                     self.s.post(f"{API}/bot/game/{game_id}/move/{mv}")
         finally:
+            stop_watch.set()
             eng.quit()
 
     def online_bots(self, limit=60):
