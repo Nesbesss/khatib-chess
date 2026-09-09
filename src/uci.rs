@@ -105,6 +105,13 @@ pub fn run() {
             // Non-standard helpers.
             "d" | "print" => println!("{}\n{}", render(&board), board.to_fen()),
             "eval" => println!("{}", crate::eval::evaluate(&board)),
+            // Non-standard: singular-extension counters from the last search.
+            // A feature that silently never fires looks identical to one that
+            // fires and helps nothing, so make the difference observable.
+            "singstats" => {
+                let (e, v, x) = searcher.singular_stats();
+                println!("eligible {} verified {} extended {}", e, v, x);
+            }
             // Non-standard: report what this build actually is. With several
             // networks in circulation, "which net is loaded?" is a real
             // question and guessing from behaviour is unreliable.
