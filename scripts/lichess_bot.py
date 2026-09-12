@@ -106,6 +106,11 @@ def telegram_listener():
             time.sleep(10)
 
 
+# Started once per process, not once per run() call -- run() re-enters on
+# every reconnect and every session rebuild.
+_TG_STARTED = False
+_SEEK_STARTED = False
+
 API = "https://lichess.org/api"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ENGINE = os.path.join(ROOT, "target/release/chess")
@@ -415,7 +420,9 @@ class Bot:
     def run(self, seek_tc=None, rated=False):
         print(f"listening as {self.username} — challenge it at "
               f"lichess.org/@/{self.username}")
-        if _tg_token():
+        global _TG_STARTED
+        if _tg_token() and not _TG_STARTED:
+            _TG_STARTED = True
             threading.Thread(target=telegram_listener, daemon=True).start()
             print(f"telegram: on ({len(_tg_chats())} subscribed) — "
                   "anyone can /start the bot to follow games")
