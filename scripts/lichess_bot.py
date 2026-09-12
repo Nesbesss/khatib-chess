@@ -392,7 +392,16 @@ class Bot:
                         # Escalate, then go fully quiet for 30 min so a stuck
                         # challenge penalty can expire instead of being kept
                         # alive by repeated pokes.
-                        wait = 1800 if self._rl >= 5 else 60 * self._rl
+                        #
+                        # The counter used to climb without bound -- a wedged
+                        # process reached 638 strikes over 35 hours, and every
+                        # poke during a penalty window renews it. Cap the
+                        # count so the log stays readable, and after enough
+                        # consecutive strikes stop challenging for an hour:
+                        # something is wrong that more requests cannot fix.
+                        self._rl = min(self._rl, 12)
+                        wait = 3600 if self._rl >= 10 else (
+                               1800 if self._rl >= 5 else 60 * self._rl)
                         print(f"rate limited (x{self._rl}); challenges paused {wait}s")
                         time.sleep(wait)
                         break

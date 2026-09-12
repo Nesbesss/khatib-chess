@@ -22,7 +22,7 @@ def _style(ax, fig):
 
 
 def tactics(path="docs/img/benchmark.png"):
-    names = ["Stockfish 18", "Khatib v11", "Leela (lc0)"]
+    names = ["Stockfish 18", "Khatib v12", "Leela (lc0)"]
     vals = [72.7, 61.8, 43.6]
     raw = ["40/55", "34/55", "24/55"]
     colors = [DIM, ACCENT, DIM]
@@ -52,9 +52,10 @@ def progress(path="docs/img/progress.png"):
     Bars, not a line: these are independent steps, and a line makes a smaller
     step look like a regression when every bar is in fact a win.
     """
-    labels = ["v2", "v3", "v4", "v7", "v10", "v11"]
-    elo = [127, 179, 241, 313, 56, 16]
-    note = ["over v1", "over v2", "over v3", "over v4", "over v7", "over v10"]
+    labels = ["v2", "v3", "v4", "v7", "v10", "v11", "v12"]
+    elo = [127, 179, 241, 313, 56, 15, 12]
+    note = ["over v1", "over v2", "over v3", "over v4", "over v7", "over v10",
+            "over v11"]
 
     fig, ax = plt.subplots(figsize=(8, 3.4), dpi=200)
     _style(ax, fig)
